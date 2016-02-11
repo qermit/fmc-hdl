@@ -23,7 +23,7 @@ component fmc_dio5chttl
 
     g_num_io                : natural                        := 5;
   
-    g_fmc_LA_inv   : std_logic_vector(33 downto 0) := (others => '0');
+    g_fmc_LA_inv   : bit_vector(33 downto 0) := (others => '0');
     
     g_fmc_DP_C2M_inv   : std_logic_vector(9 downto 0) := (others => '0');
     g_fmc_DP_M2C_inv   : std_logic_vector(9 downto 0) := (others => '0')
@@ -32,9 +32,11 @@ component fmc_dio5chttl
   Port (
     clk_i : in STD_LOGIC;
     rst_n_i : in STD_LOGIC;
-           
+
     fmc_in: in t_fmc_signals_in;
     fmc_out: out t_fmc_signals_out;
+
+    fmc_inout: inout t_fmc_signals_in;
 
     slave_i       : in  t_wishbone_slave_in;
     slave_o       : out t_wishbone_slave_out;

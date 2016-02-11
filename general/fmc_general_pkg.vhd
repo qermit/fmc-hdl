@@ -11,7 +11,7 @@ package fmc_general_pkg is
 --  end record t_diff_port;
   
 --  type t_diff_port_array is array(natural range <>) of t_diff_port; 
-
+  type t_character_array is array (natural range <>) of character;
 
   type t_jtag_port is record
     TCK    : std_logic;
@@ -112,7 +112,33 @@ generic (
         fmc_p_o : out std_logic_vector(g_pin_count-1 downto 0);
         fmc_n_o : out std_logic_vector(g_pin_count-1 downto 0)
 	);
+end component;	
+
+	component fmc_adapter_io 
+    generic (
+      g_pin_count : natural := 2;
+      g_swap: bit_vector(63 downto 0) := (others => '0');
+      g_diff: t_character_array(63 downto 0) := (others => 'X');
+      g_out_p : bit_vector(63 downto 0) := (others => '0');
+      g_inout_p : bit_vector(63 downto 0) := (others => '0');
+      g_out_n : bit_vector(63 downto 0) := (others => '0');
+      g_inout_n : bit_vector(63 downto 0) := (others => '0')      
+    );
+    Port ( 
+      port_io_p : inout STD_LOGIC_VECTOR (g_pin_count-1 downto 0);
+      port_io_n : inout STD_LOGIC_VECTOR (g_pin_count-1 downto 0);
+      
+     
+      output_i_p : in STD_LOGIC_VECTOR (g_pin_count-1 downto 0);
+      output_i_n : in STD_LOGIC_VECTOR (g_pin_count-1 downto 0);
+      dir_i_p : in STD_LOGIC_VECTOR (g_pin_count-1 downto 0) := (others => '0');
+      dir_i_n : in STD_LOGIC_VECTOR (g_pin_count-1 downto 0) := (others => '0');
+      input_o_p : out STD_LOGIC_VECTOR (g_pin_count-1 downto 0) := (others => '0');
+      input_o_n : out STD_LOGIC_VECTOR (g_pin_count-1 downto 0) := (others => '0')
+    );
 end component;
+	
+
   
 end package fmc_general_pkg;
 

@@ -29,11 +29,12 @@ entity fmc_dio5chttl is
   generic (
     g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
     g_address_granularity    : t_wishbone_address_granularity := WORD;
+    g_use_tristate           : boolean := true;
 
     g_num_io                : natural                        := 5;
-  
-    g_fmc_LA_inv   : std_logic_vector(33 downto 0) := (others => '0');
-    
+
+    g_fmc_LA_inv   : bit_vector(33 downto 0) := (others => '0');
+   
     g_fmc_DP_C2M_inv   : std_logic_vector(9 downto 0) := (others => '0');
     g_fmc_DP_M2C_inv   : std_logic_vector(9 downto 0) := (others => '0')
     );
@@ -44,6 +45,8 @@ entity fmc_dio5chttl is
            
     fmc_in: in t_fmc_signals_in;
     fmc_out: out t_fmc_signals_out;
+	 
+    fmc_inout: inout t_fmc_signals_in;
 
     slave_i       : in  t_wishbone_slave_in;
     slave_o       : out t_wishbone_slave_out;
@@ -56,7 +59,34 @@ end fmc_dio5chttl;
 
 architecture Behavioral of fmc_dio5chttl is
 
-  -- FMC input direction map and signals
+  -- FMC input direction map and signals tristate
+  constant c_LA_diff_io: t_character_array(c_fmc_LA_pin_count-1 downto 0) := (
+    33 => '1', 20 => '1', 16 => '1', 3 => '1', 0 => '1', 
+	 29 => '1', 28 => '1', 8 => '1', 7 => '1', 4 => '1', 
+	 30 => '0', 15 => '0', 24 => '0', 9 => '0', 11 => '0', 5 => '0', 6 => '0',
+	 others => 'X');
+	 
+  constant c_LA_dir_io: bit_vector(c_fmc_LA_pin_count-1 downto 0) := (
+    33 => '0', 20 => '0', 16 => '0', 3 => '0', 0 => '0', 
+	 29 => '1', 28 => '1', 8 => '1', 7 => '1', 4 => '1', 
+	 30 => '1', -- OE0_N
+	 9  => '1', -- TERM_EN3
+	 11 => '1', -- OE3_N
+	 5  => '1', -- OE4_N
+	 others => '0');
+	 
+  constant c_LA_dir_io_n: bit_vector(c_fmc_LA_pin_count-1 downto 0) := (
+	 30 => '1', -- TERM_EN0
+	 15 => '1', -- OE2_N
+	 24 => '1', -- OE1_N
+	 9  => '1', -- TERM_EN4
+	 11 => '1', -- OE3_N
+	 5  => '1', -- TERM_EN2
+	 6  => '1', -- TERM_EN1
+	 others => '0');
+	
+	 
+  -- FMC input direction map and signals  
   constant c_LA_diff_i: std_logic_vector(c_fmc_LA_pin_count-1 downto 0) := ( 
 	33 => '1', 20 => '1', 16 => '1', 3 => '1', 0 => '1', 
 	others => 'X' );
@@ -126,6 +156,41 @@ architecture Behavioral of fmc_dio5chttl is
   signal s_dir_tmp: std_logic_vector(g_num_io-1 downto 0);
 
 begin
+
+GEN_ADAPTER_TRISTATE: if g_use_tristate = true generate
+  u_LA_adapter: fmc_adapter_io
+    generic map(
+      g_pin_count => c_fmc_LA_pin_count,
+
+      g_diff(c_fmc_LA_pin_count-1 downto 0) => c_LA_diff_io,
+      g_diff(63 downto c_fmc_LA_pin_count) => (others => 'X'),
+
+      g_swap(c_fmc_LA_pin_count-1 downto 0) => g_fmc_LA_inv,
+      g_swap(63 downto c_fmc_LA_pin_count) => (others => '0'),
+
+      g_out_p(c_fmc_LA_pin_count-1 downto 0) => c_LA_dir_io,
+      g_out_p(63 downto c_fmc_LA_pin_count) => (others => '0'),
+
+      g_out_n(c_fmc_LA_pin_count-1 downto 0) => c_LA_dir_io_n,
+      g_out_n(63 downto c_fmc_LA_pin_count) => (others => '0')
+	   )
+
+    port map (
+      port_io_p => fmc_inout.LA_p,
+      port_io_n => fmc_inout.LA_n,
+
+      output_i_p => fmc_LA_output_p,
+      output_i_n => fmc_LA_output_n,
+      dir_i_p => open,
+      dir_i_n => open,
+
+      input_o_p => fmc_LA_input_o,
+      input_o_n => open
+      );	
+end generate GEN_ADAPTER_TRISTATE;
+
+GEN_ADAPTER: if g_use_tristate = false generate
+
   u_LA_in_pins: fmc_adapter
     generic map(
       g_pin_count => c_fmc_LA_pin_count,
@@ -140,14 +205,7 @@ begin
       fmc_n_i => fmc_in.LA_n,
       fmc_p_o => fmc_LA_input_o
       );
-  
-  r_input(0) <= fmc_LA_input_o(33);
-  r_input(1) <= fmc_LA_input_o(20);
-  r_input(2) <= fmc_LA_input_o(16);
-  r_input(3) <= fmc_LA_input_o(3);
-  r_input(4) <= fmc_LA_input_o(0);
-
-  
+ 
   u_LA_out_pins: fmc_adapter
     generic map(
       g_pin_count => c_fmc_LA_pin_count,
@@ -163,7 +221,14 @@ begin
       fmc_p_i => fmc_LA_output_p,
       fmc_n_i => fmc_LA_output_n
       );
-  
+end generate GEN_ADAPTER;
+
+  r_input(0) <= fmc_LA_input_o(33);
+  r_input(1) <= fmc_LA_input_o(20);
+  r_input(2) <= fmc_LA_input_o(16);
+  r_input(3) <= fmc_LA_input_o(3);
+  r_input(4) <= fmc_LA_input_o(0);
+
   fmc_LA_output_n(30) <= s_term(0);
   fmc_LA_output_n(6)  <= s_term(1);
   fmc_LA_output_n(5)  <= s_term(2);
@@ -176,13 +241,12 @@ begin
   fmc_LA_output_n(15) <= s_dir_tmp(2);
   fmc_LA_output_p(11) <= s_dir_tmp(3);
   fmc_LA_output_p(5)  <= s_dir_tmp(4);
-		
+
   fmc_LA_output_p(29) <= r_output(0);
   fmc_LA_output_p(28) <= r_output(1);
   fmc_LA_output_p(8)  <= r_output(2);
   fmc_LA_output_p(7)  <= r_output(3);
   fmc_LA_output_p(4)  <= r_output(4);
-
 
   cnx_slave_in(c_WB_MASTER_SYSTEM) <= slave_i;
   slave_o <= cnx_slave_out(c_WB_MASTER_SYSTEM);
