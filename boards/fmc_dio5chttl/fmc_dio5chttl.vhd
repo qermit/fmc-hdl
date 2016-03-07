@@ -191,36 +191,34 @@ end generate GEN_ADAPTER_TRISTATE;
 
 GEN_ADAPTER: if g_use_tristate = false generate
 
-  u_LA_in_pins: fmc_adapter
-    generic map(
-      g_pin_count => c_fmc_LA_pin_count,
-      g_diff(c_fmc_LA_pin_count-1 downto 0) => c_LA_diff_i,
-      g_diff(200 downto c_fmc_LA_pin_count) => (others => 'X'),
-      g_fmc_inv(c_fmc_LA_pin_count-1 downto 0) => g_fmc_LA_inv,
-      g_fmc_inv(200 downto c_fmc_LA_pin_count) => (others => '0'),
-      g_dir_out => '0'
-      )
-    port map (
-      fmc_p_i => fmc_in.LA_p,
-      fmc_n_i => fmc_in.LA_n,
-      fmc_p_o => fmc_LA_input_o
-      );
+--  u_LA_in_pins: fmc_adapter
+--    generic map(
+--      g_pin_count => c_fmc_LA_pin_count,
+--      g_diff => c_LA_diff_i,
+--      g_fmc_inv => g_fmc_LA_inv,
+--      g_dir_out => '0'
+--      )
+--    port map (
+--      fmc_p_i => fmc_in.LA_p,
+--      fmc_n_i => fmc_in.LA_n,
+--      fmc_p_o => fmc_LA_input_o
+--      );
  
-  u_LA_out_pins: fmc_adapter
-    generic map(
-      g_pin_count => c_fmc_LA_pin_count,
-      g_diff(c_fmc_LA_pin_count-1 downto 0) => c_LA_diff_o,
-      g_diff(200 downto c_fmc_LA_pin_count) => (others => 'X'),
-      g_fmc_inv(c_fmc_LA_pin_count-1 downto 0) => g_fmc_LA_inv,
-      g_fmc_inv(200 downto c_fmc_LA_pin_count) => (others => '0'),
-      g_dir_out => '1'
-      )
-    port map (
-      fmc_p_o => fmc_out.LA_p,
-      fmc_n_o => fmc_out.LA_n,
-      fmc_p_i => fmc_LA_output_p,
-      fmc_n_i => fmc_LA_output_n
-      );
+--  u_LA_out_pins: fmc_adapter
+--    generic map(
+--      g_pin_count => c_fmc_LA_pin_count,
+--      g_diff(c_fmc_LA_pin_count-1 downto 0) => c_LA_diff_o,
+--      g_diff(200 downto c_fmc_LA_pin_count) => (others => 'X'),
+--      g_fmc_inv(c_fmc_LA_pin_count-1 downto 0) => g_fmc_LA_inv,
+--      g_fmc_inv(200 downto c_fmc_LA_pin_count) => (others => '0'),
+--      g_dir_out => '1'
+--      )
+--    port map (
+--      fmc_p_o => fmc_out.LA_p,
+--      fmc_n_o => fmc_out.LA_n,
+--      fmc_p_i => fmc_LA_output_p,
+--      fmc_n_i => fmc_LA_output_n
+--      );
 end generate GEN_ADAPTER;
 
   r_input(0) <= fmc_LA_input_o(33);
@@ -272,26 +270,26 @@ end generate GEN_ADAPTER;
   -- Mezzanine system managment I2C master
   --    Access to mezzanine EEPROM
   ------------------------------------------------------------------------------
-  cmp_fmc_sys_i2c : xwb_i2c_master
-    generic map(
-      g_interface_mode      => g_interface_mode,
-      g_address_granularity => g_address_granularity
-      )
-    port map (
-      clk_sys_i => clk_i,
-      rst_n_i   => rst_n_i,
+--  cmp_fmc_sys_i2c : xwb_i2c_master
+--    generic map(
+--      g_interface_mode      => g_interface_mode,
+--      g_address_granularity => g_address_granularity
+--      )
+--    port map (
+--      clk_sys_i => clk_i,
+--      rst_n_i   => rst_n_i,
 
-      slave_i => cnx_master_out(c_WB_SLAVE_FMC_SYS_I2C),
-      slave_o => cnx_master_in(c_WB_SLAVE_FMC_SYS_I2C),
-      desc_o  => open,
+--      slave_i => cnx_master_out(c_WB_SLAVE_FMC_SYS_I2C),
+--      slave_o => cnx_master_in(c_WB_SLAVE_FMC_SYS_I2C),
+--      desc_o  => open,
 
-      scl_pad_i(0)    => sys_scl_in,
-      scl_pad_o(0)    => sys_scl_out,
-      scl_padoen_o(0) => sys_scl_oe_n,
-      sda_pad_i(0)    => sys_sda_in,
-      sda_pad_o(0)    => sys_sda_out,
-      sda_padoen_o(0) => sys_sda_oe_n
-      );
+--      scl_pad_i(0)    => sys_scl_in,
+--      scl_pad_o(0)    => sys_scl_out,
+--      scl_padoen_o(0) => sys_scl_oe_n,
+--      sda_pad_i(0)    => sys_sda_in,
+--      sda_pad_o(0)    => sys_sda_out,
+--      sda_padoen_o(0) => sys_sda_oe_n
+--      );
 
   ------------------------------------------------------------------------------
   -- Mezzanine 1-wire master
