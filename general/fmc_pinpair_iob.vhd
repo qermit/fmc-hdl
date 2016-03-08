@@ -55,7 +55,7 @@ architecture rtl  of fmc_pinpair_iob is
 begin
 
 
-GEN_EMPTY: if g_diff='X' generate
+GEN_EMPTY: if g_diff='X' or g_diff = 'x' generate
   fmc_p_io <= 'Z';
   fmc_n_io <= 'Z';
   fmc_p_o <= '0';

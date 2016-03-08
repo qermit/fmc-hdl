@@ -24,6 +24,9 @@ use work.fmc_general_pkg.all;
 use work.wishbone_pkg.all;
 use work.wishbone_gsi_lobi_pkg.all;
 
+use work.fmc_dio5chttl_pkg.all;
+use work.afc_pkg.all;
+
 entity fmc_dio5chttl is
 
   generic (
@@ -32,21 +35,17 @@ entity fmc_dio5chttl is
     g_use_tristate           : boolean := true;
 
     g_num_io                : natural                        := 5;
-
-    g_fmc_LA_inv   : bit_vector(33 downto 0) := (others => '0');
-   
-    g_fmc_DP_C2M_inv   : std_logic_vector(9 downto 0) := (others => '0');
-    g_fmc_DP_M2C_inv   : std_logic_vector(9 downto 0) := (others => '0')
+	g_fmc_id              : natural                        := 1;
+	g_fmc_map             : t_fmc_pin_map_vector           := afc_v2_FMC_pinmap
     );
 
   Port (
     clk_i : in STD_LOGIC;
     rst_n_i : in STD_LOGIC;
            
-    fmc_in: in t_fmc_signals_in;
-    fmc_out: out t_fmc_signals_out;
-	 
-    fmc_inout: inout t_fmc_signals_in;
+    port_fmc_in_i: in t_fmc_signals_in;
+    port_fmc_out_o: out t_fmc_signals_out;
+    port_fmc_io: inout t_fmc_signals_bidir;
 
     slave_i       : in  t_wishbone_slave_in;
     slave_o       : out t_wishbone_slave_out;
@@ -58,50 +57,8 @@ entity fmc_dio5chttl is
 end fmc_dio5chttl;
 
 architecture Behavioral of fmc_dio5chttl is
-
-  -- FMC input direction map and signals tristate
-  constant c_LA_diff_io: t_character_array(c_fmc_LA_pin_count-1 downto 0) := (
-    33 => '1', 20 => '1', 16 => '1', 3 => '1', 0 => '1', 
-	 29 => '1', 28 => '1', 8 => '1', 7 => '1', 4 => '1', 
-	 30 => '0', 15 => '0', 24 => '0', 9 => '0', 11 => '0', 5 => '0', 6 => '0',
-	 others => 'X');
-	 
-  constant c_LA_dir_io: bit_vector(c_fmc_LA_pin_count-1 downto 0) := (
-    33 => '0', 20 => '0', 16 => '0', 3 => '0', 0 => '0', 
-	 29 => '1', 28 => '1', 8 => '1', 7 => '1', 4 => '1', 
-	 30 => '1', -- OE0_N
-	 9  => '1', -- TERM_EN3
-	 11 => '1', -- OE3_N
-	 5  => '1', -- OE4_N
-	 others => '0');
-	 
-  constant c_LA_dir_io_n: bit_vector(c_fmc_LA_pin_count-1 downto 0) := (
-	 30 => '1', -- TERM_EN0
-	 15 => '1', -- OE2_N
-	 24 => '1', -- OE1_N
-	 9  => '1', -- TERM_EN4
-	 11 => '1', -- OE3_N
-	 5  => '1', -- TERM_EN2
-	 6  => '1', -- TERM_EN1
-	 others => '0');
-	
-	 
-  -- FMC input direction map and signals  
-  constant c_LA_diff_i: std_logic_vector(c_fmc_LA_pin_count-1 downto 0) := ( 
-	33 => '1', 20 => '1', 16 => '1', 3 => '1', 0 => '1', 
-	others => 'X' );
-
-  signal fmc_LA_input_o: std_logic_vector(c_fmc_LA_pin_count-1 downto 0);
-
-  -- FMC output direction map and signals
-  constant c_LA_diff_o: std_logic_vector(c_fmc_LA_pin_count-1 downto 0) := ( 
-	29 => '1', 28 => '1', 8 => '1', 7 => '1', 4 => '1', 
-	30 => '0', 15 => '0', 24 => '0', 9 => '0', 11 => '0', 5 => '0', 6 => '0',
-	others => 'X' );
-
-  signal fmc_LA_output_p: std_logic_vector(c_fmc_LA_pin_count-1 downto 0);
-  signal fmc_LA_output_n: std_logic_vector(c_fmc_LA_pin_count-1 downto 0);
-
+	constant fmc_dio5chttl_iodelay_in: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIRIN, idelay_map => fmc_dio5chttl_pin_map);
+	constant fmc_dio5chttl_iodelay_out: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIROUT, idelay_map => fmc_dio5chttl_pin_map);
 
   --== Internal Wishbone Crossbar configuration ==--
   -- Number of master port(s) on the wishbone crossbar
@@ -155,96 +112,94 @@ architecture Behavioral of fmc_dio5chttl is
   signal s_term: std_logic_vector(g_num_io-1 downto 0);
   signal s_dir_tmp: std_logic_vector(g_num_io-1 downto 0);
 
+
+  signal s_fmc_in1: t_fmc_signals_in;
+  signal s_fmc_in2: t_fmc_signals_in;
+  signal s_fmc_out1: t_fmc_signals_out;
+  signal s_fmc_out2: t_fmc_signals_out;
+  signal s_fmc_dir1: t_fmc_signals_out;  
+  signal s_fmc_dir2: t_fmc_signals_out;
+  
+
+  
+  
+  signal s_groups_in:std_logic_vector(4 * 8 - 1 downto 0);
+  signal s_groups_out:std_logic_vector(4 * 8 - 1 downto 0);
+  signal s_groups_dir:std_logic_vector(4 * 8 - 1 downto 0);
 begin
 
-GEN_ADAPTER_TRISTATE: if g_use_tristate = true generate
-  u_LA_adapter: fmc_adapter_io
-    generic map(
-      g_pin_count => c_fmc_LA_pin_count,
 
-      g_diff(c_fmc_LA_pin_count-1 downto 0) => c_LA_diff_io,
-      g_diff(63 downto c_fmc_LA_pin_count) => (others => 'X'),
+ cmp_fmc_adapter_iob: fmc_adapter_iob
+ 	generic map(
+ 		g_connector      => FMC_LPC,
+ 		g_use_jtag       => false,
+ 		g_use_inout      => true,
+ 		g_fmc_id         => g_fmc_id,
+ 		g_fmc_map        => g_fmc_map,
+ 		g_fmc_idelay_map => fmc_dio5chttl_pin_map
+ 	)
+ 	port map(
+ 		port_fmc_io    => port_fmc_io,
+ 		port_fmc_in_i  => port_fmc_in_i,
+ 		port_fmc_out_o => port_fmc_out_o,
+ 		fmc_in_o       => s_fmc_in1,
+ 		fmc_out_i      => s_fmc_out1,
+ 		fmc_out_dir_i  => s_fmc_dir1
+ 	);
 
-      g_swap(c_fmc_LA_pin_count-1 downto 0) => g_fmc_LA_inv,
-      g_swap(63 downto c_fmc_LA_pin_count) => (others => '0'),
+   
+  cmp_extractor : fmc_adapter_extractor
+  	generic map(
+  		g_fmc_id         => g_fmc_id,
+  		g_fmc_connector  => FMC_LPC,
+  		g_fmc_map        => g_fmc_map,
+  		g_fmc_idelay_map => fmc_dio5chttl_iodelay_in
+  	)
+  	port map(
+  		fmc_in_i     => s_fmc_in1,
+  		fmc_in_o     => s_fmc_in2,
+  		fmc_groups_o => s_groups_in
+  );
+  
+   cmp_injector : fmc_adapter_injector
+   	generic map(
+   		g_fmc_id         => g_fmc_id,
+   		g_fmc_connector  => FMC_LPC,
+   		g_fmc_map        => g_fmc_map,
+   		g_fmc_idelay_map => fmc_dio5chttl_iodelay_out
+   	)
+   	port map(
+   		fmc_out_i    => s_fmc_out2,
+   		fmc_dir_i    => s_fmc_dir2,
+   		fmc_out_o    => s_fmc_out1,
+   		groups_i     => s_groups_out,
+   		groups_dir_i => s_groups_dir
+   	);
+  -- @todo: final extractor
+  r_input(0) <= s_groups_in(0);
+  r_input(1) <= s_groups_in(1);
+  r_input(2) <= s_groups_in(2);
+  r_input(3) <= s_groups_in(3);
+  r_input(4) <= s_groups_in(4);
 
-      g_out_p(c_fmc_LA_pin_count-1 downto 0) => c_LA_dir_io,
-      g_out_p(63 downto c_fmc_LA_pin_count) => (others => '0'),
-
-      g_out_n(c_fmc_LA_pin_count-1 downto 0) => c_LA_dir_io_n,
-      g_out_n(63 downto c_fmc_LA_pin_count) => (others => '0')
-	   )
-
-    port map (
-      port_io_p => fmc_inout.LA_p,
-      port_io_n => fmc_inout.LA_n,
-
-      output_i_p => fmc_LA_output_p,
-      output_i_n => fmc_LA_output_n,
-      dir_i_p => open,
-      dir_i_n => open,
-
-      input_o_p => fmc_LA_input_o,
-      input_o_n => open
-      );	
-end generate GEN_ADAPTER_TRISTATE;
-
-GEN_ADAPTER: if g_use_tristate = false generate
-
---  u_LA_in_pins: fmc_adapter
---    generic map(
---      g_pin_count => c_fmc_LA_pin_count,
---      g_diff => c_LA_diff_i,
---      g_fmc_inv => g_fmc_LA_inv,
---      g_dir_out => '0'
---      )
---    port map (
---      fmc_p_i => fmc_in.LA_p,
---      fmc_n_i => fmc_in.LA_n,
---      fmc_p_o => fmc_LA_input_o
---      );
- 
---  u_LA_out_pins: fmc_adapter
---    generic map(
---      g_pin_count => c_fmc_LA_pin_count,
---      g_diff(c_fmc_LA_pin_count-1 downto 0) => c_LA_diff_o,
---      g_diff(200 downto c_fmc_LA_pin_count) => (others => 'X'),
---      g_fmc_inv(c_fmc_LA_pin_count-1 downto 0) => g_fmc_LA_inv,
---      g_fmc_inv(200 downto c_fmc_LA_pin_count) => (others => '0'),
---      g_dir_out => '1'
---      )
---    port map (
---      fmc_p_o => fmc_out.LA_p,
---      fmc_n_o => fmc_out.LA_n,
---      fmc_p_i => fmc_LA_output_p,
---      fmc_n_i => fmc_LA_output_n
---      );
-end generate GEN_ADAPTER;
-
-  r_input(0) <= fmc_LA_input_o(33);
-  r_input(1) <= fmc_LA_input_o(20);
-  r_input(2) <= fmc_LA_input_o(16);
-  r_input(3) <= fmc_LA_input_o(3);
-  r_input(4) <= fmc_LA_input_o(0);
-
-  fmc_LA_output_n(30) <= s_term(0);
-  fmc_LA_output_n(6)  <= s_term(1);
-  fmc_LA_output_n(5)  <= s_term(2);
-  fmc_LA_output_p(9)  <= s_term(3);
-  fmc_LA_output_n(9)  <= s_term(4);
+  s_groups_out(16 + 0) <= s_term(0);
+  s_groups_out(16 + 1)  <= s_term(1);
+  s_groups_out(16 + 2)  <= s_term(2);
+  s_groups_out(16 + 3)  <= s_term(3);
+  s_groups_out(16 + 4)  <= s_term(4);
 
   s_dir_tmp <= not s_dir;
-  fmc_LA_output_p(30) <= s_dir_tmp(0);
-  fmc_LA_output_n(24) <= s_dir_tmp(1);
-  fmc_LA_output_n(15) <= s_dir_tmp(2);
-  fmc_LA_output_p(11) <= s_dir_tmp(3);
-  fmc_LA_output_p(5)  <= s_dir_tmp(4);
+  s_groups_out(8 + 0) <= s_dir_tmp(0);
+  s_groups_out(8+ 1) <= s_dir_tmp(1);
+  s_groups_out(8+ 2) <= s_dir_tmp(2);
+  s_groups_out(8+ 3) <= s_dir_tmp(3);
+  s_groups_out(8+ 4)  <= s_dir_tmp(4);
 
-  fmc_LA_output_p(29) <= r_output(0);
-  fmc_LA_output_p(28) <= r_output(1);
-  fmc_LA_output_p(8)  <= r_output(2);
-  fmc_LA_output_p(7)  <= r_output(3);
-  fmc_LA_output_p(4)  <= r_output(4);
+  s_groups_out(0) <= r_output(0);
+  s_groups_out(1) <= r_output(1);
+  s_groups_out(2)  <= r_output(2);
+  s_groups_out(3)  <= r_output(3);
+  s_groups_out(4)  <= r_output(4);
 
   cnx_slave_in(c_WB_MASTER_SYSTEM) <= slave_i;
   slave_o <= cnx_slave_out(c_WB_MASTER_SYSTEM);

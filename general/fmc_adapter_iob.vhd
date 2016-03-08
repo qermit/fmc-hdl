@@ -25,15 +25,16 @@ use work.fmc_general_pkg.all;
 
 use work.afc_pkg.all;
 use work.fmc_adc_250m_16b_4cha_pkg.all;
+use work.fmc_dio5chttl_pkg.all;
 
 entity fmc_adapter_iob is
 	generic (
-	g_connector: t_fmc_connector_type := FMC_PLUS;
+	g_connector: t_fmc_connector_type := FMC_LPC;
 	g_use_jtag: boolean := false;
 	g_use_inout: boolean:= true;
 	g_fmc_id    : natural := 1;
 	g_fmc_map   : t_fmc_pin_map_vector := afc_v2_FMC_pinmap;
-	g_fmc_idelay_map: t_iodelay_map_vector := adc_250m_pin_map   
+	g_fmc_idelay_map: t_iodelay_map_vector := fmc_dio5chttl_pin_map   
     );
   Port (
   	--- FMC phisical
@@ -88,6 +89,66 @@ component fmc_pinpair_iob
             jtag_o       : out   t_jtag_port
         );
     end component;
+    
+    type t_iob_tmp_type is record
+       swap : bit;
+       diff : character;
+       in_p : bit;
+       in_n : bit;
+       out_p : bit;
+       out_n : bit;
+    end record t_iob_tmp_type;
+    constant c_iob_tmp_default :t_iob_tmp_type := (swap => '0', diff => 'X', in_p => '0', in_n => '0', out_p => '0' , out_n => '0' );
+    
+    function get_iob_vector (constant tmp_idelay_p : in t_iodelay_map; constant tmp_idelay_n : in t_iodelay_map; constant tmp_idelay_diff : in t_iodelay_map)
+    	return t_iob_tmp_type is
+       variable tmp_result : t_iob_tmp_type := c_iob_tmp_default; 
+   begin
+   	
+    	if (tmp_idelay_diff.dir_type /= DIRNONE ) then
+    		tmp_result.diff := '1';
+    		
+    		 if tmp_idelay_diff.dir_type = DIRIN then
+    			tmp_result.in_p := '1';
+    			tmp_result.out_p := '0';
+    		elsif tmp_idelay_diff.dir_type = DIROUT then
+    			tmp_result.in_p := '0';
+    			tmp_result.out_p := '1';
+    		elsif tmp_idelay_diff.dir_type = DIRIO then
+    			tmp_result.in_p := '1';
+    			tmp_result.out_p := '1';
+    		end if;
+    		
+    	elsif tmp_idelay_p.dir_type /= DIRNONE or tmp_idelay_n.dir_type /= DIRNONE then
+    		tmp_result.diff := '0';
+    		
+    		if tmp_idelay_p.dir_type = DIRIN then
+    			tmp_result.in_p := '1';
+    			tmp_result.out_p := '0';
+    		elsif tmp_idelay_p.dir_type = DIROUT then
+    			tmp_result.in_p := '0';
+    			tmp_result.out_p := '1';
+    		elsif tmp_idelay_p.dir_type = DIRIO then
+    			tmp_result.in_p := '1';
+    			tmp_result.out_p := '1';
+    		end if;
+    		
+    		if tmp_idelay_n.dir_type = DIRIN then
+    			tmp_result.in_n := '1';
+    			tmp_result.out_n := '0';
+    		elsif tmp_idelay_n.dir_type = DIROUT then
+    			tmp_result.in_n := '0';
+    			tmp_result.out_n := '1';
+    		elsif tmp_idelay_n.dir_type = DIRIO then
+    			tmp_result.in_n := '1';
+    			tmp_result.out_n := '1';
+    		end if;
+  
+    	end if;
+    	return tmp_result;
+    end function get_iob_vector;
+    
+    
 begin
 -- unidirectional ports
 fmc_in_o.CLK_M2C_p <= port_fmc_in_i.CLK_M2C_p;
@@ -127,15 +188,22 @@ fmc_in_o.pg_m2c <= port_fmc_in_i.pg_m2c;
 -- @ todo add single differentials
 
 GEN_FMC_LA : for i in port_fmc_io.LA_p'range generate
+		constant tmp_map         : t_fmc_pin_map := fmc_pin_map_extract_fmc_pin(fmc_id => g_fmc_id, pin_type => LA, pin_index => i, fmc_pin_map => g_fmc_map);
+		constant tmp_idelay_p    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => LA, pin_index => i, pin_diff => POS, iodelay_map => g_fmc_idelay_map);
+		constant tmp_idelay_n    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => LA, pin_index => i, pin_diff => NEG, iodelay_map => g_fmc_idelay_map);
+		constant tmp_idelay_diff : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => LA, pin_index => i, pin_diff => DIFF, iodelay_map => g_fmc_idelay_map);
+		
+		constant tmp : t_iob_tmp_type := get_iob_vector( tmp_idelay_p => tmp_idelay_p, tmp_idelay_n => tmp_idelay_n, tmp_idelay_diff => tmp_idelay_diff );
+begin
 
    u_pinpair_iob_LAx: fmc_pinpair_iob 
     generic map (
-      g_swap  => '0',
-      g_diff => '1',
-      g_in_p => '1',
-      g_in_n => '1',
-      g_out_p => '1',
-      g_out_n => '1'
+      g_swap  => tmp_map.iob_swap,
+      g_diff => tmp.diff,
+      g_in_p => tmp.in_p,
+      g_in_n => tmp.in_n,
+      g_out_p => tmp.out_p,
+      g_out_n => tmp.out_n
       )
     Port map ( 
       fmc_p_io => port_fmc_io.LA_p(I),

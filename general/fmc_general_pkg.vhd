@@ -31,7 +31,7 @@ package fmc_general_pkg is
 	--  type t_diff_port_array is array(natural range <>) of t_diff_port; 
 	type t_fmc_pin_type is (LA, HA, HB);
 	type t_fmc_iob_type is (DIFF, POS, NEG);
-	type t_fmc_dir_type is (DIRIN, DIROUT, DIRIO);
+	type t_fmc_dir_type is (DIRIN, DIROUT, DIRIO, DIRNONE);
 	type t_fmc_connector_type is (FMC_LPC, FMC_HPC, FMC_PLUS);
 	type t_character_array is array (natural range <>) of character;
 
@@ -137,12 +137,14 @@ package fmc_general_pkg is
 	subtype t_pin_index is integer range -1 to Integer'high;
 
 	type t_iodelay_map is record
+	    dir_type : t_fmc_dir_type;
 		group_id  : integer;
 		index     : t_pin_index;
 		iob_type  : t_fmc_pin_type;
 		iob_index : t_pin_index;
 		iob_diff  : t_fmc_iob_type;
-		iob_iddr   : bit; 
+		iob_ddr   : bit; 
+		iob_delay : bit;
 	end record t_iodelay_map;
 
 	type t_boardpin_map is record
@@ -150,8 +152,8 @@ package fmc_general_pkg is
 		iob_index : t_pin_index;
 		iob_dir   : t_fmc_dir_type;
 		iob_swap  : bit;
-		iob_pin   : string;
-		iob_pinb  : string;
+		iob_pin   : string(1 to 1);
+		iob_pinb  : string(1 to 1);
 	end record t_boardpin_map;
 	
 	type t_fmc_pin_map is record
@@ -164,42 +166,50 @@ package fmc_general_pkg is
 		iob_pinb  : string(1 to 1);
 	end record t_fmc_pin_map;
 
-	type t_iodelay_map_vector is array (natural range <>) of t_iodelay_map;
 	type t_boardpin_map_vector is array (natural range <>) of t_boardpin_map;
+	type t_iodelay_map_vector is array (natural range <>) of t_iodelay_map;
 	type t_fmc_pin_map_vector is array (natural range <>) of t_fmc_pin_map;
 
 	constant c_iodelay_map_empty : t_iodelay_map := (
+		dir_type => DIRNONE,
 		group_id  => -1,
 		index     => 0,
 		iob_type  => LA,
 		iob_index => 5,
 		iob_diff  => DIFF,
-		iob_iddr => '0'
+		iob_ddr => '0',
+		iob_delay => '0'
 	);
 
 	constant c_iodelay_map_empty1 : t_iodelay_map := (
+		dir_type => DIRNONE,
 		group_id  => 0,
 		index     => 0,
 		iob_type  => LA,
 		iob_index => 5,
 		iob_diff  => DIFF,
-		iob_iddr => '0'
+		iob_ddr => '0',
+		iob_delay => '0'
 	);
 	constant c_iodelay_map_empty2 : t_iodelay_map := (
+		dir_type => DIRNONE,
 		group_id  => 1,
 		index     => 1,
 		iob_type  => HB,
 		iob_index => 4,
 		iob_diff  => DIFF,
-		iob_iddr => '0'
+		iob_ddr => '0',
+		iob_delay => '0'
 	);
 	constant c_iodelay_map_empty3 : t_iodelay_map := (
+		dir_type => DIRNONE,
 		group_id  => 0,
 		index     => 16,
 		iob_type  => HA,
 		iob_index => 4,
 		iob_diff  => DIFF,
-		iob_iddr => '0'
+		iob_ddr => '0',
+		iob_delay => '0'
 	);
 	
 	
@@ -208,8 +218,8 @@ package fmc_general_pkg is
 		iob_index => -1,
 		iob_dir   => DIRIO,
 		iob_swap  => '0',
-		iob_pin   => "",
-		iob_pinb  => ""
+		iob_pin   => "x",
+		iob_pinb  => "x"
 	);
 	
 	constant c_fmc_pin_empty : t_fmc_pin_map := (
@@ -228,7 +238,7 @@ package fmc_general_pkg is
 	function fmc_iodelay_len_by_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector) return natural;
 	function fmc_iodelay_len_by_type(constant pin_type : in t_fmc_pin_type; constant iodelay_map : in t_iodelay_map_vector) return natural;
 	function fmc_iodelay_extract_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector;
-		
+	function fmc_extract_by_direction(constant dir_type: in t_fmc_dir_type;  constant idelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector;	
 	function fmc_iodelay_extract_type(constant pin_type : in t_fmc_pin_type; constant iodelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector;
 		
 		
@@ -238,6 +248,7 @@ package fmc_general_pkg is
 	function fmc_iodelay_extract_fmc_pin(
 		constant pin_type : in t_fmc_pin_type; 
 		constant pin_index : in t_pin_index;
+		constant pin_diff : in t_fmc_iob_type;
 		constant iodelay_map : in t_iodelay_map_vector
 	) return t_iodelay_map;
 
@@ -327,6 +338,28 @@ package fmc_general_pkg is
   			 idelay_ctrl_o : out t_fmc_idelay_out);
   	end component idelay_general;
 
+   component fmc_adapter_extractor
+   	generic(g_fmc_id         : natural              := 1;
+   		    g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
+   		    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
+   		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
+   	port(fmc_in_i     : in  t_fmc_signals_in;
+   		 fmc_in_o     : out t_fmc_signals_in;
+   		 fmc_groups_o : out std_logic_vector(4 * 8 - 1 downto 0));
+   end component fmc_adapter_extractor;
+   
+   
+   component fmc_adapter_injector
+   	generic(g_fmc_id         : natural              := 1;
+   		    g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
+   		    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
+   		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
+   	port(fmc_out_i    : in  t_fmc_signals_out;
+   		 fmc_dir_i    : in  t_fmc_signals_out;
+   		 fmc_out_o    : out t_fmc_signals_out;
+   		 groups_i     : in  std_logic_vector(4 * 8 - 1 downto 0);
+   		 groups_dir_i : in  std_logic_vector(4 * 8 - 1 downto 0));
+   end component fmc_adapter_injector;
 
 end package fmc_general_pkg;
 
@@ -412,13 +445,15 @@ package body fmc_general_pkg is
 	function fmc_iodelay_extract_fmc_pin(
 		constant pin_type : in t_fmc_pin_type; 
 		constant pin_index : in t_pin_index;
+		constant pin_diff : in t_fmc_iob_type;
 		constant iodelay_map : in t_iodelay_map_vector
 	) return t_iodelay_map is
 	
 	begin
 		for i in iodelay_map'range loop
 			if 	iodelay_map(i).iob_index = pin_index and 
-			    iodelay_map(i).iob_type = pin_type then
+			    iodelay_map(i).iob_type = pin_type and
+			    iodelay_map(i).iob_diff = pin_diff then
 				return iodelay_map(i);
 			end if;
 		end loop;
@@ -479,6 +514,34 @@ package body fmc_general_pkg is
 	end fmc_boardpin_map_to_bitvector;
 	
 	
+	function fmc_extract_by_direction(constant dir_type: in t_fmc_dir_type;  constant idelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector is
+		variable new_idelay_map:t_iodelay_map_vector(idelay_map'range);
+		variable count: natural := 0; 
+		begin
+		for i in idelay_map'range loop
+			if idelay_map(i).dir_type = dir_type or idelay_map(i).dir_type = DIRIO then
+				new_idelay_map(count) := idelay_map(i);
+				--new_idelay_map(count).dir_type := dir_type;
+				count := count + 1;
+			end if;
+		end loop;
+		if count = 0 then
+			new_idelay_map(count) := c_iodelay_map_empty;
+			count := count +1;
+		end if;
+		return new_idelay_map(count-1 downto 0);
+	end fmc_extract_by_direction;
 
+--	function fmc_boardpin_map_to_bitvector(constant pin_type : in t_fmc_pin_type; constant boardpin_map : in t_boardpin_map_vector) return bit_vector is
+--		variable tmp_swap_vector : bit_vector(fmc_group_pin_count(pin_type => pin_type) - 1 downto 0) := (others => '0');
+--		begin
+--		for i in boardpin_map'range loop
+--			if boardpin_map(i).iob_type = pin_type then
+--				tmp_swap_vector(boardpin_map(i).iob_index) := boardpin_map(i).iob_swap;
+--			end if;
+--		end loop;
+--		return tmp_swap_vector;
+--	end fmc_boardpin_map_to_bitvector;
+	
 
 end fmc_general_pkg;
