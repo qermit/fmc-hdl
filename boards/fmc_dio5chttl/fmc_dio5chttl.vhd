@@ -24,6 +24,7 @@ use work.fmc_general_pkg.all;
 use work.wishbone_pkg.all;
 use work.wishbone_gsi_lobi_pkg.all;
 
+
 use work.fmc_dio5chttl_pkg.all;
 use work.afc_pkg.all;
 
@@ -72,17 +73,19 @@ architecture Behavioral of fmc_dio5chttl is
   constant c_WB_SLAVE_FMC_ONEWIRE : natural := 1;  -- Mezzanine onewire interface
   constant c_WB_SLAVE_FMC_GPIO    : natural := 2;  -- Mezzanine onewire interface
 
-  -- sdb header address
-  constant c_SDB_ADDRESS : t_wishbone_address := x"00000000";
-
+    -- @todo: export sdb layouts to pkg files  
   -- Wishbone crossbar layout
-  constant c_INTERCONNECT_LAYOUT : t_sdb_record_array(c_NUM_WB_MASTERS-1 downto 0) :=
+  constant c_INTERCONNECT_LAYOUT_req : t_sdb_record_array(c_NUM_WB_MASTERS-1 downto 0) :=
     (
-      c_WB_SLAVE_FMC_SYS_I2C => f_sdb_embed_device(c_xwb_i2c_master_sdb, x"00001000"),
-      c_WB_SLAVE_FMC_ONEWIRE => f_sdb_embed_device(c_xwb_onewire_master_sdb, x"00001100"),
-      c_WB_SLAVE_FMC_GPIO    => f_sdb_embed_device(c_xwb_gpio_raw_sdb, x"00001200")
+      c_WB_SLAVE_FMC_SYS_I2C => f_sdb_auto_device(c_xwb_i2c_master_sdb, true),
+      c_WB_SLAVE_FMC_ONEWIRE => f_sdb_auto_device(c_xwb_onewire_master_sdb, true),
+      c_WB_SLAVE_FMC_GPIO    => f_sdb_auto_device(c_xwb_gpio_raw_sdb, true)
       );
-
+-- sdb header address
+  constant c_INTERCONNECT_LAYOUT : t_sdb_record_array(c_INTERCONNECT_LAYOUT_req'range) := f_sdb_auto_layout(c_INTERCONNECT_LAYOUT_req);
+   -- Self Describing Bus ROM Address. It will be an addressed slave as well.
+  constant c_SDB_ADDRESS                    : t_wishbone_address := f_sdb_auto_sdb(c_INTERCONNECT_LAYOUT_req);
+   
     -- Wishbone buse(s) from crossbar master port(s)
   signal cnx_master_out : t_wishbone_master_out_array(c_NUM_WB_MASTERS-1 downto 0);
   signal cnx_master_in  : t_wishbone_master_in_array(c_NUM_WB_MASTERS-1 downto 0);

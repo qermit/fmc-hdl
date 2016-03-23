@@ -84,7 +84,7 @@ begin
 				fmc_out_o.LA_n(i) <= fmc_out_i.LA_n(i);
 			end generate GEN_LA_NEG_X1;
 			GEN_LA_NEG_X2 : if tmp_odelay_n.group_id /= -1 generate
-				fmc_out_o.LA_p(i) <= groups_i(c_count_per_group * tmp_odelay_n.group_id + tmp_odelay_n.index);
+				fmc_out_o.LA_n(i) <= groups_i(c_count_per_group * tmp_odelay_n.group_id + tmp_odelay_n.index);
 			end generate GEN_LA_NEG_X2;
 		end generate GEN_LA_NEG_X;
 		
