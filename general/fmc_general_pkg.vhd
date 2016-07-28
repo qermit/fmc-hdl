@@ -16,6 +16,7 @@ library ieee;
 
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use std.textio.all;
 
 package fmc_general_pkg is
 
@@ -328,7 +329,11 @@ package fmc_general_pkg is
 			    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
 		port(fmc_in     : in  t_fmc_signals_in;
 			 fmc_out_q1 : out t_fmc_signals_in;
-			 fmc_out_q2 : out t_fmc_signals_in);
+			 
+			 ddr_clk    : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0);
+             q1         : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * 8 - 1 downto 0);
+             q2         : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * 8 - 1 downto 0)
+          );
 	end component fmc_adapter_iddr;
 
   	component idelay_general
@@ -576,6 +581,63 @@ package body fmc_general_pkg is
         return -1;
     end str_search_ch;
     
+    function str_to_int(constant str: in string) return integer is
+      variable c : integer;
+    begin
+       if str = "00" then c:= 0;
+    elsif str = "01" then c:= 1;
+    elsif str = "02" then c:= 2;
+    elsif str = "03" then c:= 3;
+    elsif str = "04" then c:= 4;
+    elsif str = "05" then c:= 5;
+    elsif str = "06" then c:= 6;
+    elsif str = "07" then c:= 7;
+    elsif str = "08" then c:= 8;
+    elsif str = "09" then c:= 9;
+    elsif str = "10" then c:= 10;
+    elsif str = "11" then c:= 11;
+    elsif str = "12" then c:= 12;
+    elsif str = "13" then c:= 13;
+    elsif str = "14" then c:= 14;
+    elsif str = "15" then c:= 15;
+    elsif str = "16" then c:= 16;
+    elsif str = "17" then c:= 17;
+    elsif str = "18" then c:= 18;
+    elsif str = "19" then c:= 19;
+    elsif str = "20" then c:= 20;
+    elsif str = "21" then c:= 21;
+    elsif str = "22" then c:= 22;
+    elsif str = "23" then c:= 23;
+    elsif str = "24" then c:= 24;
+    elsif str = "25" then c:= 25;
+    elsif str = "26" then c:= 26;
+    elsif str = "27" then c:= 27;
+    elsif str = "28" then c:= 28;
+    elsif str = "29" then c:= 29;
+    elsif str = "30" then c:= 30;
+    elsif str = "31" then c:= 31;
+    elsif str = "32" then c:= 32;
+    elsif str = "33" then c:= 33;
+    elsif str = "34" then c:= 34;
+    elsif str = "35" then c:= 35;
+    elsif str = "36" then c:= 36;
+    elsif str = "37" then c:= 37;
+    elsif str = "38" then c:= 38;
+    elsif str = "39" then c:= 39;
+    elsif str = "40" then c:= 40;
+    elsif str = "41" then c:= 41;
+    elsif str = "42" then c:= 42;
+    elsif str = "43" then c:= 43;
+    elsif str = "44" then c:= 44;
+    elsif str = "45" then c:= 45;
+    elsif str = "46" then c:= 46;
+    elsif str = "47" then c:= 47;
+    elsif str = "48" then c:= 48;
+    elsif str = "49" then c:= 49;
+    end if;
+  return c;
+    end str_to_int;
+    
 	function fmc_csv2pin_map_vector(constant csv : in string; constant  csv_separator: in character; constant csv_nl: in character) return t_fmc_pin_map_vector is
         variable FMC_ID: integer := -1;
         variable IOB_TYPE: integer := -1;
@@ -638,7 +700,12 @@ package body fmc_general_pkg is
                         exit FIELD_SEARCH;
                     end if;
                     if field_id = FMC_ID then
-                        tmp_pin_map.fmc_id := integer'value(csv(field_start to field_end-1));
+                       if csv(field_start to field_end-1) = "1" then
+                         tmp_pin_map.fmc_id := 1;
+                       elsif csv(field_start to field_end-1) = "2" then
+                         tmp_pin_map.fmc_id := 1;
+                       end if;
+                        --tmp_pin_map.fmc_id := integer'value(csv(field_start to field_end-1));
                     elsif field_id = IOB_TYPE then
                         if csv(field_start to field_end-1) = "LA" then
                             tmp_pin_map.iob_type:=LA;
@@ -648,7 +715,7 @@ package body fmc_general_pkg is
                             tmp_pin_map.iob_type:=HB;
                         end if;
                      elsif field_id = IOB_INDEX then
-                         tmp_pin_map.iob_index := integer'value(csv(field_start to field_end-1));
+                         tmp_pin_map.iob_index := str_to_int(csv(field_start to field_end-1));
                      elsif field_id = IOB_DIR then
                          if csv(field_start to field_end-1) = "DIRIN" then
                              tmp_pin_map.iob_dir:=DIRIN;

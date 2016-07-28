@@ -54,7 +54,14 @@ architecture Behavioral of fmc_adapter_idelay is
 
 	signal s_idelay_ctrl_array : t_fmc_idelay_out_array(20 * c_iodelay_groups - 1 downto 0);
 
+    signal s_fmc_out: t_fmc_signals_in;
+    signal s_fmc_in: t_fmc_signals_in;
+
 begin
+
+    s_fmc_in <= fmc_in;
+    fmc_out <= s_fmc_out;
+
 	G_LA : for i in fmc_in.LA_p'range generate
 		constant pin_type       : t_fmc_pin_type := LA;
 		constant c_tmp_map_p    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => POS, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
@@ -72,14 +79,14 @@ begin
 						g_index   => c_tmp_map_p.index
 					)
 					port map(
-						idata_in      => fmc_in.LA_p(c_tmp_map_p.iob_index),
-						idata_out     => fmc_out.LA_p(c_tmp_map_p.iob_index),
+						idata_in      => s_fmc_in.LA_p(c_tmp_map_p.iob_index),
+						idata_out     => s_fmc_out.LA_p(c_tmp_map_p.iob_index),
 						idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_p.group_id),
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
 			end generate;
 			G_IDELAY_LA_P_X2 : if c_tmp_map_p.group_id = -1 or c_tmp_map_p.iob_delay /= '1' generate
-				fmc_out.LA_p(c_tmp_map_p.iob_index) <= fmc_in.LA_p(c_tmp_map_p.iob_index);
+				s_fmc_out.LA_p(c_tmp_map_p.iob_index) <= s_fmc_in.LA_p(c_tmp_map_p.iob_index);
 			end generate;
 		end generate;
 
@@ -94,14 +101,14 @@ begin
 						g_index   => c_tmp_map_n.index
 					)
 					port map(
-						idata_in      => fmc_in.LA_n(c_tmp_map_n.iob_index),
-						idata_out     => fmc_out.LA_n(c_tmp_map_n.iob_index),
+						idata_in      => s_fmc_in.LA_n(c_tmp_map_n.iob_index),
+						idata_out     => s_fmc_out.LA_n(c_tmp_map_n.iob_index),
 						idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_n.group_id),
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
 			end generate;
 			G_IDELAY_LA_N_X2 : if c_tmp_map_n.group_id = -1 or c_tmp_map_n.iob_delay /= '1' generate
-				fmc_out.LA_n(c_tmp_map_n.iob_index) <= fmc_in.LA_n(c_tmp_map_n.iob_index);
+				s_fmc_out.LA_n(c_tmp_map_n.iob_index) <= s_fmc_in.LA_n(c_tmp_map_n.iob_index);
 			end generate;
 		end generate;
 
@@ -116,21 +123,21 @@ begin
 						g_index   => c_tmp_map_diff.index
 					)
 					port map(
-						idata_in      => fmc_in.LA_p(c_tmp_map_diff.iob_index),
-						idata_out     => fmc_out.LA_p(c_tmp_map_diff.iob_index),
+						idata_in      => s_fmc_in.LA_p(c_tmp_map_diff.iob_index),
+						idata_out     => s_fmc_out.LA_p(c_tmp_map_diff.iob_index),
 						idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_diff.group_id),
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
 			end generate;
 			G_IDELAY_LA_D_X2 : if c_tmp_map_diff.group_id = -1 or c_tmp_map_diff.iob_delay /= '1' generate
-				fmc_out.LA_p(c_tmp_map_diff.iob_index) <= fmc_in.LA_p(c_tmp_map_diff.iob_index);
+				s_fmc_out.LA_p(c_tmp_map_diff.iob_index) <= s_fmc_in.LA_p(c_tmp_map_diff.iob_index);
 			end generate;
 		end generate;
 
 	end generate G_LA;
 
 	GEN_HPC : if g_fmc_connector = FMC_HPC or g_fmc_connector = FMC_PLUS generate
-		G_HA : for i in fmc_in.HA_p'range generate
+		G_HA : for i in s_fmc_in.HA_p'range generate
 			constant pin_type       : t_fmc_pin_type := HA;
 			constant c_tmp_map_p    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => POS, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 			constant c_tmp_map_n    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => NEG, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
@@ -147,14 +154,14 @@ begin
 							g_index   => c_tmp_map_p.index
 						)
 						port map(
-							idata_in      => fmc_in.HA_p(c_tmp_map_p.iob_index),
-							idata_out     => fmc_out.HA_p(c_tmp_map_p.iob_index),
+							idata_in      => s_fmc_in.HA_p(c_tmp_map_p.iob_index),
+							idata_out     => s_fmc_out.HA_p(c_tmp_map_p.iob_index),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_p.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
 				G_IDELAY_HA_P_X2 : if c_tmp_map_p.group_id = -1 or c_tmp_map_p.iob_delay /= '1' generate
-					fmc_out.HA_p(c_tmp_map_p.iob_index) <= fmc_in.HA_p(c_tmp_map_p.iob_index);
+					s_fmc_out.HA_p(c_tmp_map_p.iob_index) <= s_fmc_in.HA_p(c_tmp_map_p.iob_index);
 				end generate;
 			end generate;
 
@@ -169,14 +176,14 @@ begin
 							g_index   => c_tmp_map_n.index
 						)
 						port map(
-							idata_in      => fmc_in.HA_n(c_tmp_map_n.iob_index),
-							idata_out     => fmc_out.HA_n(c_tmp_map_n.iob_index),
+							idata_in      => s_fmc_in.HA_n(c_tmp_map_n.iob_index),
+							idata_out     => s_fmc_out.HA_n(c_tmp_map_n.iob_index),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_n.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
 				G_IDELAY_HA_N_X2 : if c_tmp_map_n.group_id = -1 or c_tmp_map_n.iob_delay /= '1' generate
-					fmc_out.HA_n(c_tmp_map_n.iob_index) <= fmc_in.HA_n(c_tmp_map_n.iob_index);
+					s_fmc_out.HA_n(c_tmp_map_n.iob_index) <= s_fmc_in.HA_n(c_tmp_map_n.iob_index);
 				end generate;
 			end generate;
 
@@ -191,21 +198,21 @@ begin
 							g_index   => c_tmp_map_diff.index
 						)
 						port map(
-							idata_in      => fmc_in.HA_p(c_tmp_map_diff.iob_index),
-							idata_out     => fmc_out.HA_p(c_tmp_map_diff.iob_index),
+							idata_in      => s_fmc_in.HA_p(c_tmp_map_diff.iob_index),
+							idata_out     => s_fmc_out.HA_p(c_tmp_map_diff.iob_index),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_diff.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
 				G_IDELAY_HA_D_X2 : if c_tmp_map_diff.group_id = -1 or c_tmp_map_diff.iob_delay /= '1' generate
-					fmc_out.HA_p(c_tmp_map_diff.iob_index) <= fmc_in.HA_p(c_tmp_map_diff.iob_index);
+					s_fmc_out.HA_p(c_tmp_map_diff.iob_index) <= s_fmc_in.HA_p(c_tmp_map_diff.iob_index);
 				end generate;
 			end generate;
 
 		end generate G_HA;
 		
 		
-				G_HB : for i in fmc_in.HB_p'range generate
+				G_HB : for i in s_fmc_in.HB_p'range generate
 			constant pin_type       : t_fmc_pin_type := HB;
 			constant c_tmp_map_p    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => POS, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 			constant c_tmp_map_n    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => NEG, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
@@ -222,14 +229,14 @@ begin
 							g_index   => c_tmp_map_p.index
 						)
 						port map(
-							idata_in      => fmc_in.HB_p(c_tmp_map_p.iob_index),
-							idata_out     => fmc_out.HB_p(c_tmp_map_p.iob_index),
+							idata_in      => s_fmc_in.HB_p(c_tmp_map_p.iob_index),
+							idata_out     => s_fmc_out.HB_p(c_tmp_map_p.iob_index),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_p.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
 				G_IDELAY_HB_P_X2 : if c_tmp_map_p.group_id = -1 or c_tmp_map_p.iob_delay /= '1' generate
-					fmc_out.HB_p(c_tmp_map_p.iob_index) <= fmc_in.HB_p(c_tmp_map_p.iob_index);
+					s_fmc_out.HB_p(c_tmp_map_p.iob_index) <= s_fmc_in.HB_p(c_tmp_map_p.iob_index);
 				end generate;
 			end generate;
 
@@ -244,14 +251,14 @@ begin
 							g_index   => c_tmp_map_n.index
 						)
 						port map(
-							idata_in      => fmc_in.HB_n(c_tmp_map_n.iob_index),
-							idata_out     => fmc_out.HB_n(c_tmp_map_n.iob_index),
+							idata_in      => s_fmc_in.HB_n(c_tmp_map_n.iob_index),
+							idata_out     => s_fmc_out.HB_n(c_tmp_map_n.iob_index),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_n.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
 				G_IDELAY_HB_N_X2 : if c_tmp_map_n.group_id = -1 or c_tmp_map_n.iob_delay /= '1' generate
-					fmc_out.HB_n(c_tmp_map_n.iob_index) <= fmc_in.HB_n(c_tmp_map_n.iob_index);
+					s_fmc_out.HB_n(c_tmp_map_n.iob_index) <= s_fmc_in.HB_n(c_tmp_map_n.iob_index);
 				end generate;
 			end generate;
 
@@ -266,14 +273,14 @@ begin
 							g_index   => c_tmp_map_diff.index
 						)
 						port map(
-							idata_in      => fmc_in.HB_p(c_tmp_map_diff.iob_index),
-							idata_out     => fmc_out.HB_p(c_tmp_map_diff.iob_index),
+							idata_in      => s_fmc_in.HB_p(c_tmp_map_diff.iob_index),
+							idata_out     => s_fmc_out.HB_p(c_tmp_map_diff.iob_index),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_diff.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
 				G_IDELAY_HB_D_X2 : if c_tmp_map_diff.group_id = -1 or c_tmp_map_diff.iob_delay /= '1' generate
-					fmc_out.HB_p(c_tmp_map_diff.iob_index) <= fmc_in.HB_p(c_tmp_map_diff.iob_index);
+					s_fmc_out.HB_p(c_tmp_map_diff.iob_index) <= s_fmc_in.HB_p(c_tmp_map_diff.iob_index);
 				end generate;
 			end generate;
 

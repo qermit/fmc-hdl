@@ -33,14 +33,19 @@ end fmc_iddr_clock_extractor;
 
 architecture RTL of fmc_iddr_clock_extractor is
 	signal s_clk : std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0);
+	
+	signal s_fmc_in: t_fmc_signals_in;
+
 begin
+
+    s_fmc_in <= fmc_in;
 
 	GEN_CLK_X : for i in s_clk'range generate
 		constant current_group : t_iodelay_map_vector := fmc_iodelay_extract_group(group_id => i, iodelay_map => g_fmc_idelay_map);
 	begin
 		G1 : for j in current_group'range generate
 			G_LA : if current_group(j).index = 16 generate
-				s_clk(i) <= fmc_in.LA_p(current_group(j).iob_index) when current_group(j).iob_type = LA else fmc_in.HA_p(current_group(j).iob_index) when current_group(j).iob_type = HA else fmc_in.HB_p(current_group(j).iob_index) when current_group(j).iob_type = HB else '0';
+				s_clk(i) <= s_fmc_in.LA_p(current_group(j).iob_index) when current_group(j).iob_type = LA else s_fmc_in.HA_p(current_group(j).iob_index) when current_group(j).iob_type = HA else s_fmc_in.HB_p(current_group(j).iob_index) when current_group(j).iob_type = HB else '0';
 			end generate;
 		end generate;
 
