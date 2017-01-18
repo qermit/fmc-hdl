@@ -26,7 +26,8 @@ use work.wishbone_gsi_lobi_pkg.all;
 
 
 use work.fmc_dio5chttl_pkg.all;
-use work.afc_pkg.all;
+use work.fmc_helper_pkg.all;
+
 
 entity fmc_dio5chttl is
 
@@ -37,7 +38,7 @@ entity fmc_dio5chttl is
 
     g_num_io                : natural                        := 5;
 	g_fmc_id              : natural                        := 1;
-	g_fmc_map             : t_fmc_pin_map_vector           := afc_v2_FMC_pinmap
+	g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector
     );
 
   Port (
@@ -60,6 +61,8 @@ end fmc_dio5chttl;
 architecture Behavioral of fmc_dio5chttl is
 	constant fmc_dio5chttl_iodelay_in: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIRIN, idelay_map => fmc_dio5chttl_pin_map);
 	constant fmc_dio5chttl_iodelay_out: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIROUT, idelay_map => fmc_dio5chttl_pin_map);
+	
+    constant c_test_bool :boolean := write_xdc("fmc"& "1" &".xdc", g_fmc_id , g_fmc_map, fmc_dio5chttl_pin_map);
 
   --== Internal Wishbone Crossbar configuration ==--
   -- Number of master port(s) on the wishbone crossbar

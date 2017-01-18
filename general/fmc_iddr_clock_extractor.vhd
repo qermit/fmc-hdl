@@ -15,10 +15,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-
-use work.fmc_general_pkg.all;
-
-use work.fmc_adc_250m_16b_4cha_pkg.all;
 use work.fmc_general_pkg.all;
 
 entity fmc_iddr_clock_extractor is

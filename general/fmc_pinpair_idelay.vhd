@@ -38,7 +38,7 @@ use work.fmc_adc_250m_16b_4cha_pkg.all;
 entity fmc_adapter_idelay is
 	generic(
 		g_fmc_connector : t_fmc_connector_type := FMC_HPC;
-		g_idelay_map    : t_iodelay_map_vector := adc_250m_pin_map
+		g_idelay_map    : t_iodelay_map_vector := c_iodelay_map_nullvector
 	);
 	Port(
 		fmc_in            : in  t_fmc_signals_in;

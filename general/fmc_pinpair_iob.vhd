@@ -33,7 +33,8 @@ entity fmc_pinpair_iob is
     g_in_p  : bit := '0' ;
     g_out_p : bit := '0';
     g_in_n  : bit := '0' ;
-    g_out_n : bit := '0'
+    g_out_n : bit := '0' ;
+        test_1   : boolean := false
     );
   Port ( 
     fmc_p_io: inout std_logic;
@@ -51,7 +52,8 @@ entity fmc_pinpair_iob is
 end fmc_pinpair_iob;
 
 architecture rtl  of fmc_pinpair_iob is
-   
+
+
 begin
 
 
@@ -62,7 +64,10 @@ GEN_EMPTY: if g_diff='X' or g_diff = 'x' generate
   fmc_n_o <= '0';
 end generate GEN_EMPTY;
 
+
+
 GEN_SINGLE: if g_diff = '0' generate
+
 
   fmc_p_io <= fmc_p_i when g_swap = '0' and ((g_out_p = '1' and g_in_p = '1' and fmc_p_dir = '1') or (g_out_p = '1' and g_in_p = '0')) else 
               fmc_n_i when g_swap = '1' and ((g_out_n = '1' and g_in_n = '1' and fmc_n_dir = '1') or (g_out_n = '1' and g_in_n = '0')) else
@@ -86,6 +91,7 @@ end generate GEN_SINGLE;
 GEN_DIFF: if g_diff = '1' generate
 GEN_DIF_IN: if g_in_p = '1' and g_out_p = '0' generate
 
+
   cmp_ibuf : IBUFDS
     generic map(
       IOSTANDARD => "DEFAULT"
@@ -95,6 +101,8 @@ GEN_DIF_IN: if g_in_p = '1' and g_out_p = '0' generate
       IB => fmc_n_io,
       O  => fmc_p_o
       );
+      
+      
 		
     --fmc_p_o <= s_raw_out  xor To_StdULogic(g_swap);
     --fmc_n_o <= 'X';
@@ -103,6 +111,7 @@ end generate GEN_DIF_IN;
         
 GEN_DIF_OUT: if g_in_p = '0' and g_out_p = '1' generate
 
+begin
   --s_raw_in <= fmc_p_i xor To_StdULogic(g_swap);
 
   cmp_obuf : OBUFDS
@@ -114,7 +123,7 @@ GEN_DIF_OUT: if g_in_p = '0' and g_out_p = '1' generate
       OB => fmc_n_io,
       I  => fmc_p_i
       );
-
+     
 end generate GEN_DIF_OUT;
            
 GEN_DIF_INOUT: if g_in_p = '1' and g_out_p = '1'  generate

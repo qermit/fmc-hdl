@@ -23,18 +23,14 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 use work.fmc_general_pkg.all;
 
-use work.afc_pkg.all;
-use work.fmc_adc_250m_16b_4cha_pkg.all;
-use work.fmc_dio5chttl_pkg.all;
-
 entity fmc_adapter_iob is
 	generic (
 	g_connector: t_fmc_connector_type := FMC_LPC;
 	g_use_jtag: boolean := false;
 	g_use_inout: boolean:= true;
 	g_fmc_id    : natural := 1;
-	g_fmc_map   : t_fmc_pin_map_vector := afc_v2_FMC_pinmap;
-	g_fmc_idelay_map: t_iodelay_map_vector := fmc_dio5chttl_pin_map   
+	g_fmc_map   : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
+	g_fmc_idelay_map: t_iodelay_map_vector := c_iodelay_map_nullvector   
     );
   Port (
   	--- FMC phisical
@@ -52,6 +48,7 @@ entity fmc_adapter_iob is
 end fmc_adapter_iob;
 
 architecture Behavioral of fmc_adapter_iob is
+
 component fmc_pinpair_iob
   generic (
     g_swap : bit := '0';
@@ -60,7 +57,8 @@ component fmc_pinpair_iob
     g_in_p : bit := '0' ;
     g_out_p   : bit := '0';
     g_in_n : bit := '0' ;
-    g_out_n   : bit := '0'
+    g_out_n   : bit := '0';
+    test_1   : boolean := false
   );
   Port ( 
     fmc_p_io: inout std_logic;
@@ -148,7 +146,21 @@ component fmc_pinpair_iob
     	return tmp_result;
     end function get_iob_vector;
     
-    
+      function generate_loc(i: integer) return boolean is
+      
+      begin
+        if i = 4 then
+          return true;
+        end if;
+        return false;
+      end function;  
+      
+     component test_iob_loc is
+          Port ( 
+              fmc_p_io: inout std_logic
+          );
+      end component;
+      
 begin
 -- unidirectional ports
 fmc_in_o.CLK_M2C_p <= port_fmc_in_i.CLK_M2C_p;
@@ -186,7 +198,8 @@ fmc_in_o.pg_m2c <= port_fmc_in_i.pg_m2c;
 
 
 -- @ todo add single differentials
-
+      
+      
 GEN_FMC_LA : for i in port_fmc_io.LA_p'range generate
 		constant tmp_map         : t_fmc_pin_map := fmc_pin_map_extract_fmc_pin(fmc_id => g_fmc_id, pin_type => LA, pin_index => i, fmc_pin_map => g_fmc_map);
 		constant tmp_idelay_p    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => LA, pin_index => i, pin_diff => POS, iodelay_map => g_fmc_idelay_map);
@@ -194,8 +207,12 @@ GEN_FMC_LA : for i in port_fmc_io.LA_p'range generate
 		constant tmp_idelay_diff : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => LA, pin_index => i, pin_diff => DIFF, iodelay_map => g_fmc_idelay_map);
 		
 		constant tmp : t_iob_tmp_type := get_iob_vector( tmp_idelay_p => tmp_idelay_p, tmp_idelay_n => tmp_idelay_n, tmp_idelay_diff => tmp_idelay_diff );
-begin
+		
 
+begin
+     
+     
+   
    u_pinpair_iob_LAx: fmc_pinpair_iob 
     generic map (
       g_swap  => tmp_map.iob_swap,
@@ -204,7 +221,7 @@ begin
       g_in_n => tmp.in_n,
       g_out_p => tmp.out_p,
       g_out_n => tmp.out_n
-      )
+       )
     Port map ( 
       fmc_p_io => port_fmc_io.LA_p(I),
       fmc_n_io => port_fmc_io.LA_n(I),

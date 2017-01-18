@@ -26,16 +26,12 @@ use UNISIM.VComponents.all;
 
 use work.fmc_general_pkg.all;
 
-use work.fmc_adc_250m_16b_4cha_pkg.all;
-use work.afc_pkg.all;
-use work.fmc_general_pkg.all;
-
 entity fmc_adapter_injector is
 	generic(
 		g_fmc_id         : natural              := 1;
 		g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
-		g_fmc_map        : t_fmc_pin_map_vector := afc_v2_FMC_pinmap;
-		g_fmc_idelay_map : t_iodelay_map_vector := adc_250m_pin_map
+		g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
+		g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector
 	);
 	Port(
 		fmc_out_i     : in  t_fmc_signals_out;

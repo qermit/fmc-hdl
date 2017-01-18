@@ -153,8 +153,8 @@ package fmc_general_pkg is
 		iob_index : t_pin_index;
 		iob_dir   : t_fmc_dir_type;
 		iob_swap  : bit;
-		iob_pin   : string(1 to 1);
-		iob_pinb  : string(1 to 1);
+		iob_pin   : string(1 to 4);
+		iob_pinb  : string(1 to 4);
 	end record t_boardpin_map;
 	
 	type t_fmc_pin_map is record
@@ -163,10 +163,12 @@ package fmc_general_pkg is
 		iob_index : t_pin_index;
 		iob_dir   : t_fmc_dir_type;
 		iob_swap  : bit;
-		iob_pin   : string(1 to 1);
-		iob_pinb  : string(1 to 1);
+		iob_pin   : string(1 to 4);
+		iob_pinb  : string(1 to 4);
 	end record t_fmc_pin_map;
 
+	constant pin_unknown: string(1 to 4) := "xxxx";
+	
 	type t_boardpin_map_vector is array (natural range <>) of t_boardpin_map;
 	type t_iodelay_map_vector is array (natural range <>) of t_iodelay_map;
 	type t_fmc_pin_map_vector is array (natural range <>) of t_fmc_pin_map;
@@ -219,8 +221,8 @@ package fmc_general_pkg is
 		iob_index => -1,
 		iob_dir   => DIRIO,
 		iob_swap  => '0',
-		iob_pin   => "x",
-		iob_pinb  => "x"
+		iob_pin   => pin_unknown,
+		iob_pinb  => pin_unknown
 	);
 	
 	constant c_fmc_pin_empty : t_fmc_pin_map := (
@@ -229,8 +231,8 @@ package fmc_general_pkg is
 		iob_index => -1,
 		iob_dir   => DIRIO,
 		iob_swap  => '0',
-		iob_pin   => "x",
-		iob_pinb  => "x"
+		iob_pin   => pin_unknown,
+		iob_pinb  => pin_unknown
 	);
 	constant c_iodelay_map_nullvector : t_iodelay_map_vector(0 downto 0) := (0 => c_iodelay_map_empty);
 	constant c_fmc_pin_nullvector : t_fmc_pin_map_vector(0 downto 0) := (0 => c_fmc_pin_empty);
@@ -257,8 +259,12 @@ package fmc_general_pkg is
 	
 	function fmc_use_iodelay_vector(constant fmc_pin_index : in integer; constant fmc_pin_type : in t_fmc_pin_type; constant iodelay_map : in t_iodelay_map_vector) return boolean;
 
-    function fmc_csv2pin_map_vector(constant csv : in string; constant  csv_separator: in character; constant csv_nl: in character) return t_fmc_pin_map_vector;
 
+	function fmc_pin_type_to_str(fmc_pin_type: t_fmc_pin_type) return string;
+	function fmc_dir_type_to_str(fmc_dir_type: t_fmc_dir_type) return string;
+
+
+	
 	
    component fmc_adapter_iob
    	generic(g_connector      : t_fmc_connector_type := FMC_PLUS;
@@ -551,203 +557,30 @@ package body fmc_general_pkg is
 --		return tmp_swap_vector;
 --	end fmc_boardpin_map_to_bitvector;
 	
-    function str_search_ch(constant str: in string;
-                           constant ch: in character;
-                           constant start: in integer;
-                           constant last: in integer) return integer is
-        variable I: integer := -1;
-        variable vlast: integer;
-    begin
-        if last = -1 then
-          vlast:=str'length+1;
-        elsif last < str'length then
-          vlast:=last;
-        else
-          vlast:=str'length+1;
-        end if;
-        
-        I:=start;
-        while I < vlast loop
-          if str(I) = ch then
-            return I;
-          end if;
-          I:=I+1;
-        end loop;
-        if I = start then
-            return -1;
-        else
-            return last;
-        end if;
-        return -1;
-    end str_search_ch;
-    
-    function str_to_int(constant str: in string) return integer is
-      variable c : integer;
-    begin
-       if str = "00" then c:= 0;
-    elsif str = "01" then c:= 1;
-    elsif str = "02" then c:= 2;
-    elsif str = "03" then c:= 3;
-    elsif str = "04" then c:= 4;
-    elsif str = "05" then c:= 5;
-    elsif str = "06" then c:= 6;
-    elsif str = "07" then c:= 7;
-    elsif str = "08" then c:= 8;
-    elsif str = "09" then c:= 9;
-    elsif str = "10" then c:= 10;
-    elsif str = "11" then c:= 11;
-    elsif str = "12" then c:= 12;
-    elsif str = "13" then c:= 13;
-    elsif str = "14" then c:= 14;
-    elsif str = "15" then c:= 15;
-    elsif str = "16" then c:= 16;
-    elsif str = "17" then c:= 17;
-    elsif str = "18" then c:= 18;
-    elsif str = "19" then c:= 19;
-    elsif str = "20" then c:= 20;
-    elsif str = "21" then c:= 21;
-    elsif str = "22" then c:= 22;
-    elsif str = "23" then c:= 23;
-    elsif str = "24" then c:= 24;
-    elsif str = "25" then c:= 25;
-    elsif str = "26" then c:= 26;
-    elsif str = "27" then c:= 27;
-    elsif str = "28" then c:= 28;
-    elsif str = "29" then c:= 29;
-    elsif str = "30" then c:= 30;
-    elsif str = "31" then c:= 31;
-    elsif str = "32" then c:= 32;
-    elsif str = "33" then c:= 33;
-    elsif str = "34" then c:= 34;
-    elsif str = "35" then c:= 35;
-    elsif str = "36" then c:= 36;
-    elsif str = "37" then c:= 37;
-    elsif str = "38" then c:= 38;
-    elsif str = "39" then c:= 39;
-    elsif str = "40" then c:= 40;
-    elsif str = "41" then c:= 41;
-    elsif str = "42" then c:= 42;
-    elsif str = "43" then c:= 43;
-    elsif str = "44" then c:= 44;
-    elsif str = "45" then c:= 45;
-    elsif str = "46" then c:= 46;
-    elsif str = "47" then c:= 47;
-    elsif str = "48" then c:= 48;
-    elsif str = "49" then c:= 49;
-    end if;
-  return c;
-    end str_to_int;
-    
-	function fmc_csv2pin_map_vector(constant csv : in string; constant  csv_separator: in character; constant csv_nl: in character) return t_fmc_pin_map_vector is
-        variable FMC_ID: integer := -1;
-        variable IOB_TYPE: integer := -1;
-        variable IOB_INDEX: integer := -1;
-        variable IOB_DIR: integer := -1;
-        variable IOB_SWAP: integer := -1;
-        
-        variable line_start: integer;
-        variable line_end: integer;
-        variable line_id: integer;
-        variable field_id: integer;
-        variable field_start: integer;
-        variable field_end: integer;
-        
-        variable tmp_pin_map: t_fmc_pin_map;
-        variable fmc_pin_map_vector: t_fmc_pin_map_vector(1000 downto 0);
-    begin
-        line_start := 1;
-        line_id := 0;
-	    tmp_pin_map.fmc_id := 0;
-	    line_end := 0;
-	    LINE_SEARCH: loop
-            line_start:=line_end+1;
-            line_end := str_search_ch(csv, csv_nl, line_start, -1);
-            if line_end = -1 then
-                exit LINE_SEARCH;
-            end if;
-	    
-            field_id := 0;
-            field_end := line_start-1;
-	        if line_id = 0 then
-                HEADER_SEARCH: while field_id < 10 loop	        
-                    field_start := field_end + 1;
-	                field_end := str_search_ch(csv,csv_separator,field_start,line_end);
-	           
-	                if field_end = -1 then
-                        exit HEADER_SEARCH;
-                    end if;
-	           
-	                if csv(field_start to field_end-1) = "FMC_ID" then
-	                    FMC_ID := field_id;
-	                elsif csv(field_start to field_end-1) = "IOB_TYPE" then
-	                    IOB_TYPE := field_id;
-                    elsif csv(field_start to field_end-1) = "IOB_INDEX" then
-                        IOB_INDEX := field_id;
-                    elsif csv(field_start to field_end-1) = "IOB_DIR" then
-                        IOB_DIR := field_id;
-                    elsif csv(field_start to field_end-1) = "IOB_SWAP" then
-                        IOB_SWAP := field_id;
-                    end if;
 
-	                field_id := field_id + 1;
-	            end loop;
-	        else
-	            
-	            FIELD_SEARCH: loop
-	                field_start := field_end + 1;
-                    field_end := str_search_ch(csv,csv_separator,field_start,line_end);
-                    if field_end = -1 then
-                        exit FIELD_SEARCH;
-                    end if;
-                    if field_id = FMC_ID then
-                       if csv(field_start to field_end-1) = "1" then
-                         tmp_pin_map.fmc_id := 1;
-                       elsif csv(field_start to field_end-1) = "2" then
-                         tmp_pin_map.fmc_id := 1;
-                       end if;
-                        --tmp_pin_map.fmc_id := integer'value(csv(field_start to field_end-1));
-                    elsif field_id = IOB_TYPE then
-                        if csv(field_start to field_end-1) = "LA" then
-                            tmp_pin_map.iob_type:=LA;
-                        elsif csv(field_start to field_end-1) = "HA" then
-                            tmp_pin_map.iob_type:=HA;
-                        elsif csv(field_start to field_end-1) = "HB" then
-                            tmp_pin_map.iob_type:=HB;
-                        end if;
-                     elsif field_id = IOB_INDEX then
-                         tmp_pin_map.iob_index := str_to_int(csv(field_start to field_end-1));
-                     elsif field_id = IOB_DIR then
-                         if csv(field_start to field_end-1) = "DIRIN" then
-                             tmp_pin_map.iob_dir:=DIRIN;
-                         elsif csv(field_start to field_end-1) = "DIROUT" then
-                             tmp_pin_map.iob_dir:=DIROUT;
-                         elsif csv(field_start to field_end-1) = "DIRIO" then
-                             tmp_pin_map.iob_dir:=DIRIO;
-                         elsif csv(field_start to field_end-1) = "DIRNONE" then
-                             tmp_pin_map.iob_dir:=DIRNONE;
-                         end if;
-                     elsif field_id = IOB_SWAP then
-                         if csv(field_start to field_end-1) = "0" then
-                             tmp_pin_map.iob_swap:='0';
-                         elsif csv(field_start to field_end-1) = "1" then
-                             tmp_pin_map.iob_swap:='1';
-                         end if;
-                                              
-                     end if;
-                     field_id := field_id + 1;
-                end loop;
-                fmc_pin_map_vector(line_id-1).fmc_id := tmp_pin_map.fmc_id;
-                fmc_pin_map_vector(line_id-1).iob_type := tmp_pin_map.iob_type;
-                fmc_pin_map_vector(line_id-1).iob_index := tmp_pin_map.iob_index;
-                fmc_pin_map_vector(line_id-1).iob_dir := tmp_pin_map.iob_dir;
-                fmc_pin_map_vector(line_id-1).iob_swap := tmp_pin_map.iob_swap;
-                fmc_pin_map_vector(line_id-1).iob_pin := "x";
-                fmc_pin_map_vector(line_id-1).iob_pinb := "x";
-	        end if;
-	    
-	        line_id := line_id+1;
-	    end loop;
-	    return fmc_pin_map_vector(line_id-2 downto 0);
-	end fmc_csv2pin_map_vector;
+    
+
+    
+    
+
+	
+	function fmc_pin_type_to_str(fmc_pin_type: t_fmc_pin_type) return string is
+	begin
+	  if fmc_pin_type = LA then return "LA"; 
+	  elsif fmc_pin_type = HA then return "HA";
+	  elsif fmc_pin_type = HB then return "HB";
+	  else return "UNKNOWN";
+	  end if;
+	end function;
+	
+	function fmc_dir_type_to_str(fmc_dir_type: t_fmc_dir_type) return string is
+	begin
+	  if    fmc_dir_type = DIRIN   then return "DIRIN"; 
+      elsif fmc_dir_type = DIROUT  then return "DIROUT";
+      elsif fmc_dir_type = DIRIO   then return "DIRIO";
+      elsif fmc_dir_type = DIRNONE then return "DIRNONE";
+      else return "UNKNOWN";
+      end if;
+	end function;
 	
 end fmc_general_pkg;

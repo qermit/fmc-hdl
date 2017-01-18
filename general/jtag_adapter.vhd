@@ -23,9 +23,6 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 use work.fmc_general_pkg.all;
 
-use work.afc_pkg.all;
-use work.fmc_adc_250m_16b_4cha_pkg.all;
-
 entity jtag_adapter_iob is
 	generic(
 		g_use_inout : boolean := true
