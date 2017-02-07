@@ -20,6 +20,7 @@ component fmc_dio5chttl
 	generic(g_interface_mode      : t_wishbone_interface_mode      := CLASSIC;
 		    g_address_granularity : t_wishbone_address_granularity := WORD;
 		    g_use_tristate        : boolean                        := true;
+			g_enable_i2c          : boolean                        := true;
 		    g_num_io              : natural                        := 5;
 		    g_fmc_id              : natural                        := 1;
 		    g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector);

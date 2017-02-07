@@ -23,7 +23,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use work.fmc_general_pkg.all;
 use work.wishbone_pkg.all;
 use work.wishbone_gsi_lobi_pkg.all;
-
+use work.wb_helpers_pkg.all;
 
 use work.fmc_dio5chttl_pkg.all;
 use work.fmc_helper_pkg.all;
@@ -35,8 +35,10 @@ entity fmc_dio5chttl is
     g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
     g_address_granularity    : t_wishbone_address_granularity := WORD;
     g_use_tristate           : boolean := true;
+    
+    g_enable_i2c             : boolean := true;
 
-    g_num_io                : natural                        := 5;
+    g_num_io              : natural                        := 5;
 	g_fmc_id              : natural                        := 1;
 	g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector
     );
@@ -80,7 +82,7 @@ architecture Behavioral of fmc_dio5chttl is
   -- Wishbone crossbar layout
   constant c_INTERCONNECT_LAYOUT_req : t_sdb_record_array(c_NUM_WB_MASTERS-1 downto 0) :=
     (
-      c_WB_SLAVE_FMC_SYS_I2C => f_sdb_auto_device(c_xwb_i2c_master_sdb, true),
+      c_WB_SLAVE_FMC_SYS_I2C => f_sdb_auto_device(c_xwb_i2c_master_sdb, g_enable_i2c),
       c_WB_SLAVE_FMC_ONEWIRE => f_sdb_auto_device(c_xwb_onewire_master_sdb, true),
       c_WB_SLAVE_FMC_GPIO    => f_sdb_auto_device(c_xwb_gpio_raw_sdb, true)
       );
@@ -126,7 +128,7 @@ architecture Behavioral of fmc_dio5chttl is
   signal s_fmc_dir1: t_fmc_signals_out;  
   signal s_fmc_dir2: t_fmc_signals_out;
   
-
+  signal ila_user :std_logic_vector(31 downto 0);
   
   
   signal s_groups_in:std_logic_vector(4 * 8 - 1 downto 0);
@@ -227,31 +229,53 @@ begin
       master_o  => cnx_master_out
       );
 
+U_ila_fmc: xwb_ila_wishbone 
+    Port map( 
+    
+    clk => clk_i,
+    -- slave wishbone port
+    s_wb_m2s => cnx_slave_in(c_WB_MASTER_SYSTEM),
+    s_wb_s2m => cnx_slave_out(c_WB_MASTER_SYSTEM),
+    s_user => ila_user
+    );
+
+
+ila_user(2  downto 0) <=  cnx_master_out(2).stb & cnx_master_out(1).stb & cnx_master_out(0).stb;
+ila_user(3) <= '0';
+ila_user(6  downto 4) <=  cnx_master_out(2).cyc & cnx_master_out(1).cyc & cnx_master_out(0).cyc;
+ila_user(7) <= '0';
+ila_user(10 downto 8) <=  cnx_master_in(2).ack & cnx_master_in(1).ack & cnx_master_in(0).ack;
+ila_user(11) <= '0';
+ila_user(30 downto 12) <= (others => '0');
+
+ila_user(31) <= rst_n_i;
+
+U_I2C: if g_enable_i2c = true generate
   ------------------------------------------------------------------------------
   -- Mezzanine system managment I2C master
   --    Access to mezzanine EEPROM
   ------------------------------------------------------------------------------
---  cmp_fmc_sys_i2c : xwb_i2c_master
---    generic map(
---      g_interface_mode      => g_interface_mode,
---      g_address_granularity => g_address_granularity
---      )
---    port map (
---      clk_sys_i => clk_i,
---      rst_n_i   => rst_n_i,
+  cmp_fmc_sys_i2c : xwb_i2c_master
+    generic map(
+      g_interface_mode      => g_interface_mode,
+      g_address_granularity => g_address_granularity
+      )
+    port map (
+      clk_sys_i => clk_i,
+      rst_n_i   => rst_n_i,
 
---      slave_i => cnx_master_out(c_WB_SLAVE_FMC_SYS_I2C),
---      slave_o => cnx_master_in(c_WB_SLAVE_FMC_SYS_I2C),
---      desc_o  => open,
+      slave_i => cnx_master_out(c_WB_SLAVE_FMC_SYS_I2C),
+      slave_o => cnx_master_in(c_WB_SLAVE_FMC_SYS_I2C),
+      desc_o  => open,
 
---      scl_pad_i(0)    => sys_scl_in,
---      scl_pad_o(0)    => sys_scl_out,
---      scl_padoen_o(0) => sys_scl_oe_n,
---      sda_pad_i(0)    => sys_sda_in,
---      sda_pad_o(0)    => sys_sda_out,
---      sda_padoen_o(0) => sys_sda_oe_n
---      );
-
+      scl_pad_i(0)    => sys_scl_in,
+      scl_pad_o(0)    => sys_scl_out,
+      scl_padoen_o(0) => sys_scl_oe_n,
+      sda_pad_i(0)    => sys_sda_in,
+      sda_pad_o(0)    => sys_sda_out,
+      sda_padoen_o(0) => sys_sda_oe_n
+      );
+end generate;
   ------------------------------------------------------------------------------
   -- Mezzanine 1-wire master
   --    DS18B20 (thermometer + unique ID)
@@ -276,6 +300,8 @@ begin
       owr_en_o    => mezz_owr_en,
       owr_i       => mezz_owr_i
       );
+
+
 
 
   cmp_IO : xwb_gpio_raw

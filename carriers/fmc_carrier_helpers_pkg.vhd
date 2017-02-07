@@ -116,7 +116,6 @@ package body fmc_carrier_helpers_pkg is
        else
           pin_normalized(1 to pin'length) := pin;
        end if;
-       assert false report "fmc_pin_normalize("&pin&"): => "&  pin_normalized;
        return pin_normalized;
     end function;
     
