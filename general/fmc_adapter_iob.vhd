@@ -238,14 +238,22 @@ end generate;
 GEN_FMC_HPC : if g_connector = FMC_HPC or g_connector = FMC_PLUS generate
 GEN_FMC_HA : for i in port_fmc_io.HA_p'range generate
 
+		constant tmp_map         : t_fmc_pin_map := fmc_pin_map_extract_fmc_pin(fmc_id => g_fmc_id, pin_type => HA, pin_index => i, fmc_pin_map => g_fmc_map);
+		constant tmp_idelay_p    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => HA, pin_index => i, pin_diff => POS, iodelay_map => g_fmc_idelay_map);
+		constant tmp_idelay_n    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => HA, pin_index => i, pin_diff => NEG, iodelay_map => g_fmc_idelay_map);
+		constant tmp_idelay_diff : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => HA, pin_index => i, pin_diff => DIFF, iodelay_map => g_fmc_idelay_map);
+		
+		constant tmp : t_iob_tmp_type := get_iob_vector( tmp_idelay_p => tmp_idelay_p, tmp_idelay_n => tmp_idelay_n, tmp_idelay_diff => tmp_idelay_diff );
+begin
+
    u_pinpair_iob_HAx: fmc_pinpair_iob 
     generic map (
-      g_swap  => '0',
-      g_diff => '1',
-      g_in_p => '1',
-      g_in_n => '1',
-      g_out_p => '1',
-      g_out_n => '1'
+      g_swap  => tmp_map.iob_swap,
+      g_diff => tmp.diff,
+      g_in_p => tmp.in_p,
+      g_in_n => tmp.in_n,
+      g_out_p => tmp.out_p,
+      g_out_n => tmp.out_n
       )
     Port map ( 
       fmc_p_io => port_fmc_io.HA_p(I),
@@ -262,14 +270,23 @@ GEN_FMC_HA : for i in port_fmc_io.HA_p'range generate
 end generate;
 
 GEN_FMC_HB : for i in port_fmc_io.HB_p'range generate
+
+		constant tmp_map         : t_fmc_pin_map := fmc_pin_map_extract_fmc_pin(fmc_id => g_fmc_id, pin_type => HB, pin_index => i, fmc_pin_map => g_fmc_map);
+		constant tmp_idelay_p    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => HB, pin_index => i, pin_diff => POS, iodelay_map => g_fmc_idelay_map);
+		constant tmp_idelay_n    : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => HB, pin_index => i, pin_diff => NEG, iodelay_map => g_fmc_idelay_map);
+		constant tmp_idelay_diff : t_iodelay_map := fmc_iodelay_extract_fmc_pin(pin_type => HB, pin_index => i, pin_diff => DIFF, iodelay_map => g_fmc_idelay_map);
+		
+		constant tmp : t_iob_tmp_type := get_iob_vector( tmp_idelay_p => tmp_idelay_p, tmp_idelay_n => tmp_idelay_n, tmp_idelay_diff => tmp_idelay_diff );
+begin
+
    u_pinpair_iob_HBx: fmc_pinpair_iob 
     generic map (
-      g_swap  => '0',
-      g_diff => '1',
-      g_in_p => '1',
-      g_in_n => '1',
-      g_out_p => '1',
-      g_out_n => '1'
+      g_swap  => tmp_map.iob_swap,
+      g_diff => tmp.diff,
+      g_in_p => tmp.in_p,
+      g_in_n => tmp.in_n,
+      g_out_p => tmp.out_p,
+      g_out_n => tmp.out_n
       )
     Port map ( 
       fmc_p_io => port_fmc_io.HB_p(I),

@@ -28,8 +28,8 @@ use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library UNISIM;
+use UNISIM.VComponents.all;
 
 use work.fmc_general_pkg.all;
 
@@ -44,6 +44,9 @@ entity fmc_adapter_idelay is
 		fmc_in            : in  t_fmc_signals_in;
 		fmc_out           : out t_fmc_signals_in;
 
+        refclk_i          : in std_logic;
+        
+        idelay_ctrl_clk_i : in  std_logic_vector(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0);
 		idelay_ctrl_in_i  : in  t_fmc_idelay_in_array(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0);
 		idelay_ctrl_out_o : out t_fmc_idelay_out_array(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0)
 	);
@@ -56,8 +59,11 @@ architecture Behavioral of fmc_adapter_idelay is
 
     signal s_fmc_out: t_fmc_signals_in;
     signal s_fmc_in: t_fmc_signals_in;
-
+    
 begin
+
+
+   
 
     s_fmc_in <= fmc_in;
     fmc_out <= s_fmc_out;
@@ -81,6 +87,7 @@ begin
 					port map(
 						idata_in      => s_fmc_in.LA_p(c_tmp_map_p.iob_index),
 						idata_out     => s_fmc_out.LA_p(c_tmp_map_p.iob_index),
+						idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_p.group_id),
 						idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_p.group_id),
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
@@ -103,6 +110,7 @@ begin
 					port map(
 						idata_in      => s_fmc_in.LA_n(c_tmp_map_n.iob_index),
 						idata_out     => s_fmc_out.LA_n(c_tmp_map_n.iob_index),
+						idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_n.group_id),
 						idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_n.group_id),
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
@@ -125,6 +133,7 @@ begin
 					port map(
 						idata_in      => s_fmc_in.LA_p(c_tmp_map_diff.iob_index),
 						idata_out     => s_fmc_out.LA_p(c_tmp_map_diff.iob_index),
+						idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_diff.group_id),
 						idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_diff.group_id),
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
@@ -156,6 +165,7 @@ begin
 						port map(
 							idata_in      => s_fmc_in.HA_p(c_tmp_map_p.iob_index),
 							idata_out     => s_fmc_out.HA_p(c_tmp_map_p.iob_index),
+							idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_p.group_id),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_p.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
@@ -178,6 +188,7 @@ begin
 						port map(
 							idata_in      => s_fmc_in.HA_n(c_tmp_map_n.iob_index),
 							idata_out     => s_fmc_out.HA_n(c_tmp_map_n.iob_index),
+							idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_n.group_id),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_n.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
@@ -200,6 +211,7 @@ begin
 						port map(
 							idata_in      => s_fmc_in.HA_p(c_tmp_map_diff.iob_index),
 							idata_out     => s_fmc_out.HA_p(c_tmp_map_diff.iob_index),
+							idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_diff.group_id),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_diff.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
@@ -231,6 +243,7 @@ begin
 						port map(
 							idata_in      => s_fmc_in.HB_p(c_tmp_map_p.iob_index),
 							idata_out     => s_fmc_out.HB_p(c_tmp_map_p.iob_index),
+							idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_p.group_id),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_p.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
@@ -253,6 +266,7 @@ begin
 						port map(
 							idata_in      => s_fmc_in.HB_n(c_tmp_map_n.iob_index),
 							idata_out     => s_fmc_out.HB_n(c_tmp_map_n.iob_index),
+							idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_n.group_id),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_n.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
@@ -275,6 +289,7 @@ begin
 						port map(
 							idata_in      => s_fmc_in.HB_p(c_tmp_map_diff.iob_index),
 							idata_out     => s_fmc_out.HB_p(c_tmp_map_diff.iob_index),
+							idelay_clk_i  => idelay_ctrl_clk_i(c_tmp_map_diff.group_id),
 							idelay_ctrl_i => idelay_ctrl_in_i(c_tmp_map_diff.group_id),
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
@@ -292,13 +307,23 @@ begin
 		signal tmp_array     : t_fmc_idelay_out_array(fmc_iodelay_len_by_group(group_id => i, iodelay_map => g_idelay_map) downto 0);
 		signal zero_vector_5 : std_logic_vector(4 downto 0);
 	begin
+	
+	    
+        U_IDELAYCTRL : IDELAYCTRL
+        port map (
+          RDY => idelay_ctrl_out_o(i).ctl_rdy,       -- 1-bit output: Ready output
+          REFCLK => refclk_i, -- 1-bit input: Reference clock input
+          RST => idelay_ctrl_in_i(i).ctl_reset        -- 1-bit input: Active high reset input
+        );
+        
 		zero_vector_5                         <= "00000";
 		-- todo: dodac 
 		tmp_array(tmp_array'high).cntvalueout <= zero_vector_5;
 		G_TMP_MERGE : for j in tmp_array'high - 1 downto 0 generate
 			tmp_array(j).cntvalueout <= tmp_array(j + 1).cntvalueout or s_idelay_ctrl_array(i * 17 + c_tmp_group(j).index).cntvalueout;
 		end generate;
-
+		
+        
 		idelay_ctrl_out_o(i).cntvalueout <= tmp_array(0).cntvalueout;
 	end generate;
 

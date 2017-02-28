@@ -22,7 +22,7 @@ use work.fmc_general_pkg.all;
 package fmc_adc_250m_16b_4cha_pkg is
 
 
-  constant adc_250m_pin_map: t_iodelay_map_vector(9 * 4 -1 downto 0) := (
+  constant adc_250m_pin_map: t_iodelay_map_vector(67 downto 0) := (
   	0 => (dir_type => DIRIN, group_id  => 0, index  =>  0, iob_type  => HA, iob_index =>  1, iob_diff  => DIFF, iob_ddr => '1', iob_delay => '1' ),
   	1 => (dir_type => DIRIN, group_id  => 0, index  =>  1, iob_type  => HA, iob_index =>  4, iob_diff  => DIFF, iob_ddr => '1', iob_delay => '1' ),
   	2 => (dir_type => DIRIN, group_id  => 0, index  =>  2, iob_type  => HA, iob_index =>  5, iob_diff  => DIFF, iob_ddr => '1', iob_delay => '1' ),
@@ -63,6 +63,48 @@ package fmc_adc_250m_16b_4cha_pkg is
   	33 => (dir_type => DIRIN, group_id  => 3, index  =>  6, iob_type  => HB, iob_index => 18, iob_diff  => DIFF, iob_ddr => '1', iob_delay => '1' ),
   	34 => (dir_type => DIRIN, group_id  => 3, index  =>  7, iob_type  => HB, iob_index => 17, iob_diff  => DIFF, iob_ddr => '1', iob_delay => '1' ),
   	35 => (dir_type => DIRIN, group_id  => 3, index  => 16, iob_type  => HB, iob_index =>  6, iob_diff  => DIFF, iob_ddr => '1', iob_delay => '1' ),
+  	
+    36 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 29, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- LED RED
+    37 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 24, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- LED BLUE
+    38 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 24, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- LED GREEN
+    39 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 27, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- TRIG DIR
+    40 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 27, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- TRIG TERM
+    41 => (dir_type => DIRIO, group_id  => -1, index =>  0, iob_type => LA, iob_index => 33, iob_diff =>  DIFF, iob_ddr => '0', iob_delay => '0'), -- TRIG
+    -- SPI PLL
+    42 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 21, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- PLL_SCB (CS)
+    43 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 21, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- SDIO (MOSI)
+    44 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 22, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- PLL_SCLK (SCLK)
+    45 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 22, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- PLL_CLK_SEL
+    46 => (dir_type => DIRIN,  group_id  => -1, index =>  0, iob_type => HA, iob_index => 18, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- PLL STATUS
+    47 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 18, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- PLL FUNCTION
+    48 => (dir_type => DIRIN , group_id  => -1, index =>  0, iob_type => HA, iob_index => 23, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- PLL SDO (MISO)
+    49 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 23, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- PLL_PDn
+    --50 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 14, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- PLL RF out EN
+    -- SPI ADC
+    51 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index =>  5, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC SDO (MISO)
+    52 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 14, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- ADC SCLK
+    53 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 14, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC_SDI (MOSI)
+    54 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 10, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC CSB 0
+    55 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index =>  9, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC CSB 1
+    56 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 10, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- ADC CSB 2
+    57 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index =>  9, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- ADC CSB 3
+    58 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 32, iob_diff =>  DIFF, iob_ddr => '0', iob_delay => '0'), -- ADC CLKDIVRST
+    59 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 12, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC SLEEP
+    60 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 13, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- ADC ADC RESET
+    -- SPI MON
+    61 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 28, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- MON DAVn
+    62 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 30, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- MON SSn
+    63 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 31, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- MON SCLK
+    64 => (dir_type => DIRIN , group_id  => -1, index =>  0, iob_type => LA, iob_index => 30, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- MON MISO 
+    65 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 31, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- MON MOSI
+    -- VCXO i2c
+    50 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index =>  5, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- VCXO_PD_L
+    66 => (dir_type => DIRIO,  group_id  => -1, index =>  0, iob_type => LA, iob_index =>  6, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- VCXO_SCL
+    67 => (dir_type => DIRIO,  group_id  => -1, index =>  0, iob_type => LA, iob_index =>  6, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- VCXO_SDA
+
+
+    
+
   	others => c_iodelay_map_empty
   ) ;
    

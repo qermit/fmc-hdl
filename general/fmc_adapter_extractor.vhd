@@ -28,6 +28,7 @@ use work.fmc_general_pkg.all;
 
 entity fmc_adapter_extractor is
 	generic(
+        g_count_per_group: natural              := 8;
 		g_fmc_id         : natural              := 1;
 		g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
 		g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
@@ -37,13 +38,14 @@ entity fmc_adapter_extractor is
 		fmc_in_i     : in  t_fmc_signals_in;
 		fmc_in_o     : out t_fmc_signals_in;
 
-		fmc_groups_o : out std_logic_vector(4 * 8 - 1 downto 0)
+		fmc_groups_o : out std_logic_vector(g_count_per_group * fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0)
 	);
 end fmc_adapter_extractor;
 
 architecture RTL of fmc_adapter_extractor is
-	constant c_count_per_group : natural := 8;
-	signal s_fmc_groups        : std_logic_vector(4 * 8 - 1 downto 0) := ( others => '0' );
+    constant c_groups_count : natural := fmc_iodelay_group_count(g_fmc_idelay_map);    
+	constant c_count_per_group : natural := g_count_per_group;
+	signal s_fmc_groups        : std_logic_vector(c_count_per_group * c_groups_count - 1 downto 0) := ( others => '0' );
 begin
 	fmc_groups_o <= s_fmc_groups;
 	

@@ -1,20 +1,19 @@
 -------------------------------------------------------------------------------
--- Title      : FMC DIO 5ch TTL a HDL module
+-- Title      : FMC DIO 32ch LVDS a HDL module
 -- Project    : FMC Cores
 -------------------------------------------------------------------------------
--- File       : fmc_dio5chttl.vhd
+-- File       : fmc_dio_32chlvdsa.vhd
 -- Author     : Piotr Miedzik
 -- Company    : GSI
--- Created    : 2015-09-11
--- Last update: 2016-02-10
+-- Created    : 2017-02-27
 -- Platform   : FPGA-generics
 -- Standard   : VHDL
 -------------------------------------------------------------------------------
 -- Description:
--- fmc_dio5chttl integrates I2C Master, 1-Wire Master and GPIO-RAW
+-- fmc_dio_32chlvdsa integrates I2C Master, GPIO-RAW and SPI master
 -- 
 -------------------------------------------------------------------------------
--- Copyright (c) 2016 Piotr Miedzik
+-- Copyright (c) 2017 Piotr Miedzik
 -------------------------------------------------------------------------------
 
 library IEEE;
@@ -25,20 +24,18 @@ use work.wishbone_pkg.all;
 use work.wishbone_gsi_lobi_pkg.all;
 use work.wb_helpers_pkg.all;
 
-use work.fmc_dio5chttl_pkg.all;
+use work.fmc_dio_32chlvdsa_pkg.all;
 use work.fmc_helper_pkg.all;
 
 
-entity fmc_dio5chttl is
+entity fmc_dio_32chlvdsa is
 
   generic (
     g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
     g_address_granularity    : t_wishbone_address_granularity := WORD;
-    g_use_tristate           : boolean := true;
     
-    g_enable_i2c             : boolean := true;
+    g_enable_system_i2c      : boolean := true;
 
-    g_num_io              : natural                        := 5;
 	g_fmc_id              : natural                        := 1;
 	g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector
     );
@@ -46,28 +43,24 @@ entity fmc_dio5chttl is
   Port (
     clk_i : in STD_LOGIC;
     rst_n_i : in STD_LOGIC;
-           
-    port_fmc_in_i: in t_fmc_signals_in;
-    port_fmc_out_o: out t_fmc_signals_out;
+    
     port_fmc_io: inout t_fmc_signals_bidir;
 
     slave_i       : in  t_wishbone_slave_in;
     slave_o       : out t_wishbone_slave_out;
            
-    raw_o: out STD_LOGIC_VECTOR (g_num_io-1 downto 0);
-    raw_i: in  STD_LOGIC_VECTOR (g_num_io-1 downto 0)
+    raw_o: out STD_LOGIC_VECTOR (31 downto 0);
+    raw_i: in  STD_LOGIC_VECTOR (31 downto 0)
     );
 
-end fmc_dio5chttl;
+end fmc_dio_32chlvdsa;
 
-architecture Behavioral of fmc_dio5chttl is
+architecture Behavioral of fmc_dio_32chlvdsa is
 
-
-
-	constant fmc_dio5chttl_iodelay_in: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIRIN, idelay_map => fmc_dio5chttl_pin_map);
-	constant fmc_dio5chttl_iodelay_out: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIROUT, idelay_map => fmc_dio5chttl_pin_map);
+	constant fmc_dio_32chlvdsa_iodelay_in: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIRIN, idelay_map => fmc_dio_32chlvdsa_pin_map);
+	constant fmc_dio_32chlvdsa_iodelay_out: t_iodelay_map_vector:= fmc_extract_by_direction(dir_type => DIROUT, idelay_map => fmc_dio_32chlvdsa_pin_map);
 	
-    constant c_test_bool :boolean := write_xdc("fmc"& integer'image(g_fmc_id) &"_loc.xdc", g_fmc_id , g_fmc_map, fmc_dio5chttl_pin_map);
+    constant c_test_bool :boolean := write_xdc("fmc"& integer'image(g_fmc_id) &"_loc.xdc", g_fmc_id , g_fmc_map, fmc_dio_32chlvdsa_pin_map);
 
   --== Internal Wishbone Crossbar configuration ==--
   -- Number of master port(s) on the wishbone crossbar
@@ -78,16 +71,17 @@ architecture Behavioral of fmc_dio5chttl is
   constant c_NUM_WB_SLAVES : integer := 1;
 
   constant c_WB_SLAVE_FMC_SYS_I2C : natural := 0;  -- Mezzanine system I2C interface (EEPROM)
-  constant c_WB_SLAVE_FMC_ONEWIRE : natural := 1;  -- Mezzanine onewire interface
-  constant c_WB_SLAVE_FMC_GPIO    : natural := 2;  -- Mezzanine onewire interface
+  constant c_WB_SLAVE_FMC_GPIO    : natural := 1;  -- Mezzanine onewire interface
+  constant c_WB_SLAVE_FMC_SPI     : natural := 2;  -- Mezzanine onewire interface
+  
 
     -- @todo: export sdb layouts to pkg files  
   -- Wishbone crossbar layout
   constant c_INTERCONNECT_LAYOUT_req : t_sdb_record_array(c_NUM_WB_MASTERS-1 downto 0) :=
     (
-      c_WB_SLAVE_FMC_SYS_I2C => f_sdb_auto_device(c_xwb_i2c_master_sdb, g_enable_i2c),
-      c_WB_SLAVE_FMC_ONEWIRE => f_sdb_auto_device(c_xwb_onewire_master_sdb, true),
-      c_WB_SLAVE_FMC_GPIO    => f_sdb_auto_device(c_xwb_gpio_raw_sdb, true)
+      c_WB_SLAVE_FMC_SYS_I2C => f_sdb_auto_device(c_xwb_i2c_master_sdb, g_enable_system_i2c),
+      c_WB_SLAVE_FMC_GPIO    => f_sdb_auto_device(c_xwb_gpio_raw_sdb, true),
+      c_WB_SLAVE_FMC_SPI     => f_sdb_auto_device(c_xwb_spi_sdb, true)
       );
 -- sdb header address
   constant c_INTERCONNECT_LAYOUT : t_sdb_record_array(c_INTERCONNECT_LAYOUT_req'range) := f_sdb_auto_layout(c_INTERCONNECT_LAYOUT_req);
@@ -112,28 +106,30 @@ architecture Behavioral of fmc_dio5chttl is
   signal sys_sda_oe_n: std_logic;
 
   --== Wishbone 1-Wire master ==--
-  signal mezz_owr_en: std_logic_vector(0 downto 0);
-  signal mezz_owr_i: std_logic_vector(0 downto 0);
+  signal mezz_cs  : std_logic_vector(0 downto 0);
+  signal mezz_miso: std_logic;
+  signal mezz_mosi: std_logic;
+  signal mezz_sclk: std_logic;
 
   --== Wishbone GPIO RAW signals ==--
-  signal r_input: std_logic_vector(g_num_io-1 downto 0);
-  signal r_output: std_logic_vector(g_num_io-1 downto 0);
+  constant c_num_io : natural := 32;
+  signal r_input: std_logic_vector(c_num_io-1 downto 0);
+  signal r_output: std_logic_vector(c_num_io-1 downto 0);
 
-  signal s_dir: std_logic_vector(g_num_io-1 downto 0);
-  signal s_term: std_logic_vector(g_num_io-1 downto 0);
-  signal s_dir_tmp: std_logic_vector(g_num_io-1 downto 0);
+  signal s_dir: std_logic_vector(c_num_io-1 downto 0);
+  signal s_dir_tmp: std_logic_vector(c_num_io-1 downto 0);
 
 
-  signal s_fmc_in1: t_fmc_signals_in;
-  signal s_fmc_in2: t_fmc_signals_in;
+  signal s_fmc_in1: t_fmc_signals_in; -- signals from iob to extractor
+  signal s_fmc_in_raw: t_fmc_signals_in; -- raw interface from extractor (ungrupped pins)
   signal s_fmc_out1: t_fmc_signals_out;
-  signal s_fmc_out2: t_fmc_signals_out;
+  signal s_fmc_out_raw: t_fmc_signals_out;
   signal s_fmc_dir1: t_fmc_signals_out;  
   signal s_fmc_dir2: t_fmc_signals_out;
   
-  signal s_groups_in:std_logic_vector(8 - 1 downto 0);
-  signal s_groups_out:std_logic_vector(3 * 8 - 1 downto 0);
-  signal s_groups_dir:std_logic_vector(3 * 8 - 1 downto 0);
+  signal port_fmc_in: t_fmc_signals_in; -- dummy signals
+  
+
 begin
 
 
@@ -144,70 +140,53 @@ begin
  		g_use_inout      => true,
  		g_fmc_id         => g_fmc_id,
  		g_fmc_map        => g_fmc_map,
- 		g_fmc_idelay_map => fmc_dio5chttl_pin_map
+ 		g_fmc_idelay_map => fmc_dio_32chlvdsa_pin_map
  	)
  	port map(
  		port_fmc_io    => port_fmc_io,
- 		port_fmc_in_i  => port_fmc_in_i,
- 		port_fmc_out_o => port_fmc_out_o,
+ 		port_fmc_in_i  => port_fmc_in,
+ 		port_fmc_out_o => open,
+        
  		fmc_in_o       => s_fmc_in1,
- 		fmc_out_i      => s_fmc_out1,
+        
+ 		fmc_out_i      => s_fmc_out1,        
  		fmc_out_dir_i  => s_fmc_dir1
  	);
 
    
   cmp_extractor : fmc_adapter_extractor
   	generic map(
+        g_count_per_group => 32,
   		g_fmc_id         => g_fmc_id,
   		g_fmc_connector  => FMC_LPC,
   		g_fmc_map        => g_fmc_map,
-  		g_fmc_idelay_map => fmc_dio5chttl_iodelay_in
+  		g_fmc_idelay_map => fmc_dio_32chlvdsa_iodelay_in
   	)
   	port map(
-  		fmc_in_i     => s_fmc_in1,
-  		fmc_in_o     => s_fmc_in2,
-  		fmc_groups_o => s_groups_in
+  		fmc_in_i     => s_fmc_in1, -- input from iob
+  		fmc_in_o     => s_fmc_in_raw, -- raw interfece for group = -1
+  		fmc_groups_o => r_input    -- interface from grups
   );
   
    cmp_injector : fmc_adapter_injector
    	generic map(
+        g_count_per_group => 32,
    		g_fmc_id         => g_fmc_id,
    		g_fmc_connector  => FMC_LPC,
    		g_fmc_map        => g_fmc_map,
-   		g_fmc_idelay_map => fmc_dio5chttl_iodelay_out
+   		g_fmc_idelay_map => fmc_dio_32chlvdsa_iodelay_out
    	)
    	port map(
-   		fmc_out_i    => s_fmc_out2,
-   		fmc_dir_i    => s_fmc_dir2,
-   		fmc_out_o    => s_fmc_out1,
-   		groups_i     => s_groups_out,
-   		groups_dir_i => s_groups_dir
+   		fmc_out_i    => s_fmc_out_raw, -- input value from ungrupped pins
+   		fmc_dir_i    => s_fmc_dir2, -- input directon from ungrupped pins (unused)
+        
+   		fmc_out_o    => s_fmc_out1, -- output to IOB
+        
+   		groups_i     => r_output,
+   		groups_dir_i => s_dir_tmp
    	);
+    
   -- @todo: final extractor
-  r_input(0) <= s_groups_in(0);
-  r_input(1) <= s_groups_in(1);
-  r_input(2) <= s_groups_in(2);
-  r_input(3) <= s_groups_in(3);
-  r_input(4) <= s_groups_in(4);
-
-  s_groups_out(16 + 0) <= s_term(0);
-  s_groups_out(16 + 1)  <= s_term(1);
-  s_groups_out(16 + 2)  <= s_term(2);
-  s_groups_out(16 + 3)  <= s_term(3);
-  s_groups_out(16 + 4)  <= s_term(4);
-
-  s_dir_tmp <= not s_dir;
-  s_groups_out(8 + 0) <= s_dir_tmp(0);
-  s_groups_out(8+ 1) <= s_dir_tmp(1);
-  s_groups_out(8+ 2) <= s_dir_tmp(2);
-  s_groups_out(8+ 3) <= s_dir_tmp(3);
-  s_groups_out(8+ 4)  <= s_dir_tmp(4);
-
-  s_groups_out(0) <= r_output(0);
-  s_groups_out(1) <= r_output(1);
-  s_groups_out(2)  <= r_output(2);
-  s_groups_out(3)  <= r_output(3);
-  s_groups_out(4)  <= r_output(4);
 
   cnx_slave_in(c_WB_MASTER_SYSTEM) <= slave_i;
   slave_o <= cnx_slave_out(c_WB_MASTER_SYSTEM);
@@ -220,7 +199,7 @@ begin
       g_wraparound  => true,
       g_layout      => c_INTERCONNECT_LAYOUT,
       g_sdb_addr    => c_SDB_ADDRESS,
-      g_sdb_name    => "fmc-dio-5chttla" )
+      g_sdb_name    => "fmc-dio-32chlvdsa" )
     port map (
       clk_sys_i => clk_i,
       rst_n_i   => rst_n_i,
@@ -230,36 +209,8 @@ begin
       master_o  => cnx_master_out
       );
 
-GEN_ILA_WB: if false generate
-signal ila_user : std_logic_vector(31 downto 0);
 
-begin
-
-
-U_ila_fmc: xwb_ila_wishbone 
-    Port map( 
-    
-    clk => clk_i,
-    -- slave wishbone port
-    s_wb_m2s => cnx_slave_in(c_WB_MASTER_SYSTEM),
-    s_wb_s2m => cnx_slave_out(c_WB_MASTER_SYSTEM),
-    s_user => ila_user
-    );
-
-
-ila_user(2  downto 0) <=  cnx_master_out(2).stb & cnx_master_out(1).stb & cnx_master_out(0).stb;
-ila_user(3) <= '0';
-ila_user(6  downto 4) <=  cnx_master_out(2).cyc & cnx_master_out(1).cyc & cnx_master_out(0).cyc;
-ila_user(7) <= '0';
-ila_user(10 downto 8) <=  cnx_master_in(2).ack & cnx_master_in(1).ack & cnx_master_in(0).ack;
-ila_user(11) <= '0';
-ila_user(30 downto 12) <= (others => '0');
-
-ila_user(31) <= rst_n_i;
-
-end generate;
-
-U_I2C: if g_enable_i2c = true generate
+  U_I2C_SYS: if g_enable_system_i2c = true generate
   ------------------------------------------------------------------------------
   -- Mezzanine system managment I2C master
   --    Access to mezzanine EEPROM
@@ -284,40 +235,16 @@ U_I2C: if g_enable_i2c = true generate
       sda_pad_o(0)    => sys_sda_out,
       sda_padoen_o(0) => sys_sda_oe_n
       );
-end generate;
-  ------------------------------------------------------------------------------
-  -- Mezzanine 1-wire master
-  --    DS18B20 (thermometer + unique ID)
-  ------------------------------------------------------------------------------
-  cmp_fmc_onewire : xwb_onewire_master
-    generic map(
-      g_interface_mode      => g_interface_mode,
-      g_address_granularity => g_address_granularity,
-      g_num_ports           => 1,
-      g_ow_btp_normal       => "5.0",
-      g_ow_btp_overdrive    => "1.0"
-      )
-    port map(
-      clk_sys_i => clk_i,
-      rst_n_i   => rst_n_i,
-
-      slave_i => cnx_master_out(c_WB_SLAVE_FMC_ONEWIRE),
-      slave_o => cnx_master_in(c_WB_SLAVE_FMC_ONEWIRE),
-      desc_o  => open,
-
-      owr_pwren_o => open,
-      owr_en_o    => mezz_owr_en,
-      owr_i       => mezz_owr_i
-      );
+    end generate;
 
 
 
-
-  cmp_IO : xwb_gpio_raw
+    -- todo -> add synchronized output from external
+    U_GPIO : xwb_gpio_raw
     generic map(
       g_interface_mode                        => g_interface_mode,
       g_address_granularity                   => g_address_granularity,
-      g_num_pins                              => g_num_io,
+      g_num_pins                              => c_num_io,
       g_with_builtin_tristates                => false,
       g_debug                                 => false
       )
@@ -335,11 +262,41 @@ end generate;
       gpio_out_o                              => r_output,
       gpio_in_i                               => r_input,
       gpio_oen_o                              => s_dir,
-      gpio_term_o                             => s_term,
+      gpio_term_o                             => open,
 
       -- AltF raw interface    
       raw_o => raw_o,
       raw_i => raw_i
       );
+ 
+ 
+    U_SPI: xwb_spi 
+    generic map(
+    g_interface_mode      => g_interface_mode,
+    g_address_granularity => g_address_granularity,
+    g_divider_len         => 16,
+    g_max_char_len        => 32,
+    g_num_slaves          => 1 
+    )
+  port map(
+    clk_sys_i => clk_i,
+    rst_n_i   => rst_n_i,
+
+    -- Wishbone
+    slave_i => cnx_master_out(c_WB_SLAVE_FMC_SPI),
+    slave_o => cnx_master_in(c_WB_SLAVE_FMC_SPI),
+    desc_o  => open,
+
+    pad_cs_o   => mezz_cs,
+    pad_sclk_o => mezz_sclk,
+    pad_mosi_o => mezz_mosi,
+    pad_miso_i => mezz_miso
+    );
+
+    s_fmc_out_raw.LA_p(32) <= mezz_cs(0);
+    s_fmc_out_raw.LA_n(32) <= mezz_sclk;
+    s_fmc_out_raw.LA_p(33) <= mezz_mosi;
+    
+    mezz_miso <= s_fmc_in_raw.LA_n(33);
  
 end Behavioral;

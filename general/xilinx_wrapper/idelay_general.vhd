@@ -33,6 +33,7 @@ entity idelay_general is
 		    g_index   : natural := 0);
 	port(idata_in      : in  std_logic;
 		 idata_out     : out std_logic;
+		 idelay_clk_i  : in std_logic;
 		 idelay_ctrl_i : in  t_fmc_idelay_in;
 		 idelay_ctrl_o : out t_fmc_idelay_out);
 end idelay_general;
@@ -98,7 +99,7 @@ begin
 		port map(
 			CNTVALUEOUT => s_cntvalueout,
 			DATAOUT     => idata_out,
-			C           => idelay_ctrl_i.c,
+			C           => idelay_clk_i,
 			CE          => s_ce,
 			CINVCTRL    => '0',
 			CNTVALUEIN  => idelay_ctrl_i.cntvaluein,

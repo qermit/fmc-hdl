@@ -34,20 +34,23 @@ package fmc_general_pkg is
 	type t_fmc_iob_type is (DIFF, POS, NEG);
 	type t_fmc_dir_type is (DIRIN, DIROUT, DIRIO, DIRNONE);
 	type t_fmc_connector_type is (FMC_LPC, FMC_HPC, FMC_PLUS);
+	type t_fmc_group_offsets is array (natural range <>) of natural;
 	type t_character_array is array (natural range <>) of character;
 
 	type t_fmc_idelay_out is record
 		cntvalueout : std_logic_vector(4 downto 0);
+		ctl_rdy     : std_logic;
 	end record;
 
 	type t_fmc_idelay_in is record
-		c          : std_logic;
+		--c          : std_logic;
 		ld         : std_logic;
 		ce         : std_logic;
 		inc        : std_logic;
 		cntvaluein : std_logic_vector(4 downto 0);
 		clk_sel    : std_logic;
 		data_sel   : std_logic_vector(15 downto 0);
+		ctl_reset  : std_logic;
 	end record;
 
 	type t_fmc_idelay_out_array is array (natural range <>) of t_fmc_idelay_out;
@@ -237,6 +240,8 @@ package fmc_general_pkg is
 	constant c_iodelay_map_nullvector : t_iodelay_map_vector(0 downto 0) := (0 => c_iodelay_map_empty);
 	constant c_fmc_pin_nullvector : t_fmc_pin_map_vector(0 downto 0) := (0 => c_fmc_pin_empty);
 
+
+    function fmc_get_group_offsets(constant iodelay_map : in t_iodelay_map_vector; constant count_per_group: natural) return t_fmc_group_offsets;
 	function fmc_iodelay_group_count(constant iodelay_map : in t_iodelay_map_vector) return natural;
 	function fmc_iodelay_len_by_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector) return natural;
 	function fmc_iodelay_len_by_type(constant pin_type : in t_fmc_pin_type; constant iodelay_map : in t_iodelay_map_vector) return natural;
@@ -266,6 +271,9 @@ package fmc_general_pkg is
 
 	
 	
+	constant C_FMC_DIR_OUT : std_logic := '0';
+	constant C_FMC_DIR_IN  : std_logic := '1';
+	
    component fmc_adapter_iob
    	generic(g_connector      : t_fmc_connector_type := FMC_PLUS;
    		    g_use_jtag       : boolean              := false;
@@ -285,6 +293,10 @@ package fmc_general_pkg is
    	generic(g_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
    	port(fmc_in     : in  t_fmc_signals_in;
    		 fmc_out    : out t_fmc_signals_in;
+   		 
+   		 refclk_i          : in std_logic;
+   		 
+   		 idelay_ctrl_clk_i : in  std_logic_vector(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0);
    		 idelay_ctrl_in_i  : in  t_fmc_idelay_in_array(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0);
    		 idelay_ctrl_out_o : out t_fmc_idelay_out_array(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0));
    end component fmc_adapter_idelay;
@@ -348,31 +360,38 @@ package fmc_general_pkg is
   			    g_index   : natural := 0);
   		port(idata_in      : in  std_logic;
   			 idata_out     : out std_logic;
+  			 idelay_clk_i  : in  std_logic;
   			 idelay_ctrl_i : in  t_fmc_idelay_in;
   			 idelay_ctrl_o : out t_fmc_idelay_out);
   	end component idelay_general;
 
    component fmc_adapter_extractor
-   	generic(g_fmc_id         : natural              := 1;
+   	generic(
+            g_count_per_group: natural              := 8;
+            g_fmc_id         : natural              := 1;
    		    g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
    		    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
-   		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
+   		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector
+    );
    	port(fmc_in_i     : in  t_fmc_signals_in;
    		 fmc_in_o     : out t_fmc_signals_in;
-   		 fmc_groups_o : out std_logic_vector(4 * 8 - 1 downto 0));
+   		 fmc_groups_o : out std_logic_vector(g_count_per_group * fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0));
    end component fmc_adapter_extractor;
    
    
    component fmc_adapter_injector
-   	generic(g_fmc_id         : natural              := 1;
+   	generic(
+            g_count_per_group: natural              := 8;
+            g_fmc_id         : natural              := 1;
    		    g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
    		    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
-   		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
+   		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector
+    );
    	port(fmc_out_i    : in  t_fmc_signals_out;
    		 fmc_dir_i    : in  t_fmc_signals_out;
    		 fmc_out_o    : out t_fmc_signals_out;
-   		 groups_i     : in  std_logic_vector(4 * 8 - 1 downto 0);
-   		 groups_dir_i : in  std_logic_vector(4 * 8 - 1 downto 0));
+   		 groups_i     : in  std_logic_vector(g_count_per_group * fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0);
+   		 groups_dir_i : in  std_logic_vector(g_count_per_group * fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0));
    end component fmc_adapter_injector;
 
 end package fmc_general_pkg;
@@ -559,6 +578,15 @@ package body fmc_general_pkg is
 	
 
     
+    function fmc_get_group_offsets(constant iodelay_map : in t_iodelay_map_vector; constant count_per_group: natural) return t_fmc_group_offsets is
+      variable groups : natural := fmc_iodelay_group_count(iodelay_map);
+      variable offsets : t_fmc_group_offsets(groups-1 downto 0) := (others => -1 );
+    begin
+      for i in offsets'range loop
+        offsets(i) := i*count_per_group ;
+      end loop;
+      return offsets;
+    end function;
 
     
     

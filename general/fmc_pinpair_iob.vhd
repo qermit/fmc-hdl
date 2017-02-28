@@ -53,7 +53,7 @@ end fmc_pinpair_iob;
 
 architecture rtl  of fmc_pinpair_iob is
 
-
+constant c_swap : bit := '0'; -- swap is done in pin generation
 begin
 
 
@@ -67,23 +67,28 @@ end generate GEN_EMPTY;
 
 
 GEN_SINGLE: if g_diff = '0' generate
+  signal T_p: std_logic;
+  signal T_n: std_logic;
+begin
 
-
-  fmc_p_io <= fmc_p_i when g_swap = '0' and ((g_out_p = '1' and g_in_p = '1' and fmc_p_dir = '1') or (g_out_p = '1' and g_in_p = '0')) else 
-              fmc_n_i when g_swap = '1' and ((g_out_n = '1' and g_in_n = '1' and fmc_n_dir = '1') or (g_out_n = '1' and g_in_n = '0')) else
-              'Z';
-
-  fmc_n_io <= fmc_n_i when g_swap = '0' and ((g_out_n = '1' and g_in_n = '1' and fmc_n_dir = '1') or (g_out_n = '1' and g_in_n = '0')) else 
-              fmc_p_i when g_swap = '1' and ((g_out_p = '1' and g_in_p = '1' and fmc_p_dir = '1') or (g_out_p = '1' and g_in_p = '0')) else
-              'Z';
-
-  fmc_p_o <=  fmc_p_io when g_swap = '0' and (g_in_p = '1') else
-              fmc_n_io when g_swap = '1' and (g_in_p = '1') else
-              '0';
-
-  fmc_n_o <=  fmc_n_io when g_swap = '0' and (g_in_n = '1') else
-              fmc_p_io when g_swap = '1' and (g_in_n = '1') else
-              '0';
+   T_p <= '0' when ((g_out_p = '1' and g_in_p = '1' and fmc_p_dir = '0') or (g_out_p = '1' and g_in_p = '0')) else '1';
+   T_n <= '0' when ((g_out_n = '1' and g_in_n = '1' and fmc_n_dir = '0') or (g_out_n = '1' and g_in_n = '0')) else '1';
+   
+   IOBUF_p : IOBUF
+   port map (
+      O  => fmc_p_o,   -- Buffer output
+      IO => fmc_p_io,  -- Buffer inout port (connect directly to top-level port)
+      I  => fmc_p_i,   -- Buffer input
+      T  => T_p        -- 3-state enable input, high=input, low=output 
+   );
+   
+   IOBUF_n : IOBUF
+   port map (
+      O  => fmc_n_o,   -- Buffer output
+      IO => fmc_n_io,  -- Buffer inout port (connect directly to top-level port)
+      I  => fmc_n_i,   -- Buffer input
+      T  => T_n        -- 3-state enable input, high=input, low=output 
+   );
 
 end generate GEN_SINGLE;
 
