@@ -81,7 +81,7 @@ package fmc_adc_250m_16b_4cha_pkg is
     49 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 23, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- PLL_PDn
     --50 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => HA, iob_index => 14, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- PLL RF out EN
     -- SPI ADC
-    51 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index =>  5, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC SDO (MISO)
+    51 => (dir_type => DIRIN, group_id  => -1, index =>  0, iob_type => LA, iob_index =>  5, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC SDO (MISO)
     52 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 14, iob_diff =>  POS, iob_ddr => '0', iob_delay => '0'), -- ADC SCLK
     53 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 14, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC_SDI (MOSI)
     54 => (dir_type => DIROUT, group_id  => -1, index =>  0, iob_type => LA, iob_index => 10, iob_diff =>  NEG, iob_ddr => '0', iob_delay => '0'), -- ADC CSB 0
