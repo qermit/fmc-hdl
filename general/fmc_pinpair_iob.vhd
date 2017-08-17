@@ -12,7 +12,7 @@
 -------------------------------------------------------------------------------
 -- Description:
 -- 
--- 
+--  todo: altera version (alt_outbuf_tri_diff, ...)
 -------------------------------------------------------------------------------
 -- Copyright (c) 2016 Piotr Miedzik
 -------------------------------------------------------------------------------
@@ -94,58 +94,73 @@ end generate GEN_SINGLE;
 
 
 GEN_DIFF: if g_diff = '1' generate
-GEN_DIF_IN: if g_in_p = '1' and g_out_p = '0' generate
+  signal tmp_sig: std_logic;
+  signal tmp_sig_negated: std_logic;
+  signal tmp_t: std_logic;
+begin
 
+  fmc_p_o <=  tmp_sig when g_in_p = '1' and g_swap = '0' else
+              tmp_sig_negated when g_in_p = '1' and g_swap = '1' else
+              '0';
+              
+  fmc_n_o <=  '0';
+  
+  tmp_t <= fmc_p_dir when g_out_p = '1'  else '1';  
 
-  cmp_ibuf : IBUFDS
+GEN_DIFF_I: if g_in_p = '1' and g_out_p = '0' GENERATE
+
+  cmp_iobufds : IBUFDS_DIFF_OUT
     generic map(
-      IOSTANDARD => "DEFAULT"
+      IOSTANDARD => "DEFAULT",
+      DIFF_TERM => TRUE,
+      IBUF_LOW_PWR => FALSE
       )
     port map(
       I  => fmc_p_io,
       IB => fmc_n_io,
-      O  => fmc_p_o
+      O   => tmp_sig,
+      OB  => tmp_sig_negated
       );
-      
-      
-		
-    --fmc_p_o <= s_raw_out  xor To_StdULogic(g_swap);
-    --fmc_n_o <= 'X';
-            
-end generate GEN_DIF_IN;
-        
-GEN_DIF_OUT: if g_in_p = '0' and g_out_p = '1' generate
 
-begin
-  --s_raw_in <= fmc_p_i xor To_StdULogic(g_swap);
 
-  cmp_obuf : OBUFDS
+end generate;
+
+GEN_DIFF_O: if g_in_p = '0' and g_out_p = '1' GENERATE
+
+  cmp_obufds : OBUFTDS
     generic map(
       IOSTANDARD => "DEFAULT"
       )
     port map(
-      O  => fmc_p_io,
-      OB => fmc_n_io,
-      I  => fmc_p_i
+      I  => fmc_p_i,
+      O   => fmc_p_io,
+      OB  => fmc_n_io,
+      T => tmp_t
       );
-     
-end generate GEN_DIF_OUT;
-           
-GEN_DIF_INOUT: if g_in_p = '1' and g_out_p = '1'  generate
 
-  cmp_obuf : IOBUFDS
+
+end generate;
+
+
+GEN_DIFF_IO: if g_in_p = '1' and g_out_p = '1' GENERATE
+
+  cmp_iobufds : IOBUFDS_DIFF_OUT
     generic map(
-      IOSTANDARD => "DEFAULT"
+      IOSTANDARD => "DEFAULT",
+      DIFF_TERM => TRUE,
+      IBUF_LOW_PWR => FALSE
       )
     port map(
       IO  => fmc_p_io,
       IOB => fmc_n_io,
-      I   => fmc_p_i,
-      O   => fmc_p_o,
-      T   => fmc_p_dir
+      I  => fmc_p_i,
+      O   => tmp_sig,
+      OB  => tmp_sig_negated,
+      TM => tmp_t,
+      TS => tmp_t
       );
-      
-end generate GEN_DIF_INOUT;
+end generate;
+
 	       
 end generate GEN_DIFF;
 

@@ -39,6 +39,7 @@ entity fmc_adapter_injector is
 		fmc_dir_i     : in  t_fmc_signals_out;
 		
 		fmc_out_o     : out t_fmc_signals_out;
+		fmc_dir_o     : out t_fmc_signals_out;
 
 		groups_i : in std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * g_count_per_group - 1 downto 0);
 		groups_dir_i : in std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * g_count_per_group - 1 downto 0)
@@ -63,28 +64,34 @@ begin
 
 		GEN_LA_DIFF_X : if tmp_odelay_diff.dir_type /= DIRNONE and tmp_odelay_diff.iob_ddr = '0' generate
 			GEN_LA_DIFF_X1 : if tmp_odelay_diff.group_id = -1 generate
-				fmc_out_o.LA_p(i) <= fmc_out_i.LA_p(i) xor to_stdulogic(tmp_map.iob_swap);
+				-- fmc_out_o.LA_p(i) <= fmc_out_i.LA_p(i) xor to_stdulogic(tmp_map.iob_swap);  -- todo -> check if device has obuf negation
+				fmc_out_o.LA_p(i) <= fmc_out_i.LA_p(i);  -- todo -> check if device has obuf negation
 			end generate GEN_LA_DIFF_X1;
 			GEN_LA_DIFF_X2 : if tmp_odelay_diff.group_id /= -1 generate
-				fmc_out_o.LA_p(i) <= groups_i(offsets(tmp_odelay_diff.group_id) + tmp_odelay_diff.index)  xor to_stdulogic(tmp_map.iob_swap) ;
+				--fmc_out_o.LA_p(i) <= groups_i(offsets(tmp_odelay_diff.group_id) + tmp_odelay_diff.index)  xor to_stdulogic(tmp_map.iob_swap) ;  -- todo -> check if device has obuf negation
+				fmc_out_o.LA_p(i) <= groups_i(offsets(tmp_odelay_diff.group_id) + tmp_odelay_diff.index);  -- todo -> check if device has obuf negation
 			end generate GEN_LA_DIFF_X2;
 		end generate GEN_LA_DIFF_X;
 		
 		GEN_LA_POS_X : if tmp_odelay_p.dir_type /= DIRNONE and tmp_odelay_p.iob_ddr = '0' generate
 			GEN_LA_POS_X1 : if tmp_odelay_p.group_id = -1 generate
 				fmc_out_o.LA_p(i) <= fmc_out_i.LA_p(i);
+				fmc_dir_o.LA_p(i) <= fmc_dir_i.LA_p(i);
 			end generate GEN_LA_POS_X1;
 			GEN_LA_POS_X2 : if tmp_odelay_p.group_id /= -1 generate
 				fmc_out_o.LA_p(i) <= groups_i(offsets(tmp_odelay_p.group_id) + tmp_odelay_p.index);
+				fmc_out_o.LA_p(i) <= groups_dir_i(offsets(tmp_odelay_p.group_id) + tmp_odelay_p.index);
 			end generate GEN_LA_POS_X2;
 		end generate GEN_LA_POS_X;
 
 		GEN_LA_NEG_X : if tmp_odelay_n.dir_type /= DIRNONE and tmp_odelay_n.iob_ddr = '0' generate
 			GEN_LA_NEG_X1 : if tmp_odelay_n.group_id = -1 generate
 				fmc_out_o.LA_n(i) <= fmc_out_i.LA_n(i);
+				fmc_dir_o.LA_n(i) <= fmc_dir_i.LA_n(i);
 			end generate GEN_LA_NEG_X1;
 			GEN_LA_NEG_X2 : if tmp_odelay_n.group_id /= -1 generate
 				fmc_out_o.LA_n(i) <= groups_i(offsets(tmp_odelay_n.group_id) + tmp_odelay_n.index);
+				fmc_out_o.LA_n(i) <= groups_dir_i(offsets(tmp_odelay_n.group_id) + tmp_odelay_n.index);
 			end generate GEN_LA_NEG_X2;
 		end generate GEN_LA_NEG_X;
 		

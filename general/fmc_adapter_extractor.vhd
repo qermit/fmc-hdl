@@ -60,10 +60,10 @@ begin
 
 		GEN_LA_DIFF_X : if tmp_idelay_diff.dir_type /= DIRNONE and tmp_idelay_diff.iob_ddr = '0' generate
 			GEN_LA_DIFF_X1 : if tmp_idelay_diff.group_id = -1 generate
-				fmc_in_o.LA_p(i) <= fmc_in_i.LA_p(i) xor to_stdulogic(tmp_map.iob_swap);
+				fmc_in_o.LA_p(i) <= fmc_in_i.LA_p(i); -- xor to_stdulogic(tmp_map.iob_swap);
 			end generate GEN_LA_DIFF_X1;
 			GEN_LA_DIFF_X2 : if tmp_idelay_diff.group_id /= -1 generate
-				s_fmc_groups(c_count_per_group * tmp_idelay_diff.group_id + tmp_idelay_diff.index) <= fmc_in_i.LA_p(i) xor to_stdulogic(tmp_map.iob_swap);
+				s_fmc_groups(c_count_per_group * tmp_idelay_diff.group_id + tmp_idelay_diff.index) <= fmc_in_i.LA_p(i); -- xor to_stdulogic(tmp_map.iob_swap);
 			end generate GEN_LA_DIFF_X2;
 		end generate GEN_LA_DIFF_X;
 		

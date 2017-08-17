@@ -38,6 +38,7 @@ use work.fmc_adc_250m_16b_4cha_pkg.all;
 entity fmc_adapter_idelay is
 	generic(
 		g_fmc_connector : t_fmc_connector_type := FMC_HPC;
+		g_fmc_id        : natural := 0;
 		g_idelay_map    : t_iodelay_map_vector := c_iodelay_map_nullvector
 	);
 	Port(
@@ -60,6 +61,9 @@ architecture Behavioral of fmc_adapter_idelay is
     signal s_fmc_out: t_fmc_signals_in;
     signal s_fmc_in: t_fmc_signals_in;
     
+    
+    attribute IODELAY_GROUP : string;
+    
 begin
 
 
@@ -75,14 +79,15 @@ begin
 		constant c_tmp_map_diff : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => DIFF, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 	begin
 		G_IDELAY_LA_P_X : if c_tmp_map_p.dir_type /= DIRNONE generate
-			G_IDELAY_LA_P_X1 : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' generate
+			G_IDELAY_LA_P_X1 : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' and c_tmp_map_p.index /= 167 generate
 				constant c_out_index : natural := c_tmp_map_p.group_id * 17 + c_tmp_map_p.index;
 			begin
 				cmp_idelay_la_p_x : idelay_general
 					generic map(
 						g_use_iob => true,
 						g_is_clk  => c_tmp_map_p.index = 16,
-						g_index   => c_tmp_map_p.index
+						g_index   => c_tmp_map_p.index,
+						g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_p.group_id)
 					)
 					port map(
 						idata_in      => s_fmc_in.LA_p(c_tmp_map_p.iob_index),
@@ -92,20 +97,26 @@ begin
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
 			end generate;
+			
+--			G_IDELAY_LA_P_CLK : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' and c_tmp_map_p.index = 16 generate
+--			    s_fmc_out.LA_p(c_tmp_map_p.iob_index) <= s_fmc_in.LA_p(c_tmp_map_p.iob_index);
+--			end generate;
+			
 			G_IDELAY_LA_P_X2 : if c_tmp_map_p.group_id = -1 or c_tmp_map_p.iob_delay /= '1' generate
 				s_fmc_out.LA_p(c_tmp_map_p.iob_index) <= s_fmc_in.LA_p(c_tmp_map_p.iob_index);
 			end generate;
 		end generate;
 
 		G_IDELAY_LA_N_X : if c_tmp_map_n.dir_type /= DIRNONE generate
-			G_IDELAY_LA_N_X1 : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' generate
+			G_IDELAY_LA_N_X1 : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' and c_tmp_map_n.index /= 167 generate
 				constant c_out_index : natural := c_tmp_map_n.group_id * 17 + c_tmp_map_n.index;
 			begin
 				cmp_idelay_la_n_x : idelay_general
 					generic map(
 						g_use_iob => true,
 						g_is_clk  => c_tmp_map_n.index = 16,
-						g_index   => c_tmp_map_n.index
+						g_index   => c_tmp_map_n.index,
+                        g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_n.group_id)
 					)
 					port map(
 						idata_in      => s_fmc_in.LA_n(c_tmp_map_n.iob_index),
@@ -115,20 +126,25 @@ begin
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
 			end generate;
+--			G_IDELAY_LA_N_CLK : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' and c_tmp_map_n.index = 16 generate
+--			  s_fmc_out.LA_n(c_tmp_map_n.iob_index) <= s_fmc_in.LA_n(c_tmp_map_n.iob_index);
+--			end generate;
+			
 			G_IDELAY_LA_N_X2 : if c_tmp_map_n.group_id = -1 or c_tmp_map_n.iob_delay /= '1' generate
 				s_fmc_out.LA_n(c_tmp_map_n.iob_index) <= s_fmc_in.LA_n(c_tmp_map_n.iob_index);
 			end generate;
 		end generate;
 
 		G_IDELAY_LA_D_X : if c_tmp_map_diff.dir_type /= DIRNONE generate
-			G_IDELAY_LA_D_X1 : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' generate
+			G_IDELAY_LA_D_X1 : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' and c_tmp_map_diff.index /= 167 generate
 				constant c_out_index : natural := c_tmp_map_diff.group_id * 17 + c_tmp_map_diff.index;
 			begin
 				cmp_idelay_la_d_x : idelay_general
 					generic map(
 						g_use_iob => true,
 						g_is_clk  => c_tmp_map_diff.index = 16,
-						g_index   => c_tmp_map_diff.index
+						g_index   => c_tmp_map_diff.index,
+						g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_diff.group_id)
 					)
 					port map(
 						idata_in      => s_fmc_in.LA_p(c_tmp_map_diff.iob_index),
@@ -138,6 +154,11 @@ begin
 						idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 					);
 			end generate;
+			
+--			G_IDELAY_LA_D_CLK : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' and c_tmp_map_diff.index = 16 generate
+--			  s_fmc_out.LA_p(c_tmp_map_diff.iob_index) <= s_fmc_in.LA_p(c_tmp_map_diff.iob_index);
+--			end generate;
+			
 			G_IDELAY_LA_D_X2 : if c_tmp_map_diff.group_id = -1 or c_tmp_map_diff.iob_delay /= '1' generate
 				s_fmc_out.LA_p(c_tmp_map_diff.iob_index) <= s_fmc_in.LA_p(c_tmp_map_diff.iob_index);
 			end generate;
@@ -153,14 +174,15 @@ begin
 			constant c_tmp_map_diff : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => DIFF, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 		begin
 			G_IDELAY_HA_P_X : if c_tmp_map_p.dir_type /= DIRNONE generate
-				G_IDELAY_HA_P_X1 : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' generate
+				G_IDELAY_HA_P_X1 : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' and c_tmp_map_p.index /= 167 generate
 					constant c_out_index : natural := c_tmp_map_p.group_id * 17 + c_tmp_map_p.index;
 				begin
 					cmp_idelay_ha_p_x : idelay_general
 						generic map(
 							g_use_iob => true,
 							g_is_clk  => c_tmp_map_p.index = 16,
-							g_index   => c_tmp_map_p.index
+							g_index   => c_tmp_map_p.index,
+							g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_p.group_id)
 						)
 						port map(
 							idata_in      => s_fmc_in.HA_p(c_tmp_map_p.iob_index),
@@ -170,20 +192,26 @@ begin
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
+				
+--				G_IDELAY_HA_P_CLK : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' and c_tmp_map_p.index = 16 generate
+--				   s_fmc_out.HA_p(c_tmp_map_p.iob_index) <= s_fmc_in.HA_p(c_tmp_map_p.iob_index);
+--				end generate;
+				
 				G_IDELAY_HA_P_X2 : if c_tmp_map_p.group_id = -1 or c_tmp_map_p.iob_delay /= '1' generate
 					s_fmc_out.HA_p(c_tmp_map_p.iob_index) <= s_fmc_in.HA_p(c_tmp_map_p.iob_index);
 				end generate;
 			end generate;
 
 			G_IDELAY_HA_N_X : if c_tmp_map_n.dir_type /= DIRNONE generate
-				G_IDELAY_HA_N_X1 : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' generate
+				G_IDELAY_HA_N_X1 : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' and c_tmp_map_n.index /= 167 generate
 					constant c_out_index : natural := c_tmp_map_n.group_id * 17 + c_tmp_map_n.index;
 				begin
 					cmp_idelay_ha_n_x : idelay_general
 						generic map(
 							g_use_iob => true,
 							g_is_clk  => c_tmp_map_n.index = 16,
-							g_index   => c_tmp_map_n.index
+							g_index   => c_tmp_map_n.index,
+							g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_n.group_id)
 						)
 						port map(
 							idata_in      => s_fmc_in.HA_n(c_tmp_map_n.iob_index),
@@ -193,20 +221,24 @@ begin
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
+--				G_IDELAY_HA_N_CLK : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' and c_tmp_map_n.index = 16 generate
+--				  s_fmc_in.HA_n(c_tmp_map_n.iob_index) <= s_fmc_out.HA_n(c_tmp_map_n.iob_index);
+--				end generate;
 				G_IDELAY_HA_N_X2 : if c_tmp_map_n.group_id = -1 or c_tmp_map_n.iob_delay /= '1' generate
 					s_fmc_out.HA_n(c_tmp_map_n.iob_index) <= s_fmc_in.HA_n(c_tmp_map_n.iob_index);
 				end generate;
 			end generate;
 
 			G_IDELAY_HA_D_X : if c_tmp_map_diff.dir_type /= DIRNONE generate
-				G_IDELAY_HA_D_X1 : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' generate
+				G_IDELAY_HA_D_X1 : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' and c_tmp_map_diff.index /= 165 generate
 					constant c_out_index : natural := c_tmp_map_diff.group_id * 17 + c_tmp_map_diff.index;
 				begin
 					cmp_idelay_ha_d_x : idelay_general
 						generic map(
 							g_use_iob => true,
 							g_is_clk  => c_tmp_map_diff.index = 16,
-							g_index   => c_tmp_map_diff.index
+							g_index   => c_tmp_map_diff.index,
+							g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_diff.group_id)
 						)
 						port map(
 							idata_in      => s_fmc_in.HA_p(c_tmp_map_diff.iob_index),
@@ -216,6 +248,10 @@ begin
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
+--				G_IDELAY_HA_D_CLK : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' and c_tmp_map_diff.index = 16 generate
+--				  s_fmc_out.HA_p(c_tmp_map_diff.iob_index) <= s_fmc_in.HA_p(c_tmp_map_diff.iob_index);
+--				end generate;
+				
 				G_IDELAY_HA_D_X2 : if c_tmp_map_diff.group_id = -1 or c_tmp_map_diff.iob_delay /= '1' generate
 					s_fmc_out.HA_p(c_tmp_map_diff.iob_index) <= s_fmc_in.HA_p(c_tmp_map_diff.iob_index);
 				end generate;
@@ -224,21 +260,22 @@ begin
 		end generate G_HA;
 		
 		
-				G_HB : for i in s_fmc_in.HB_p'range generate
+       G_HB : for i in s_fmc_in.HB_p'range generate
 			constant pin_type       : t_fmc_pin_type := HB;
 			constant c_tmp_map_p    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => POS, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 			constant c_tmp_map_n    : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => NEG, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 			constant c_tmp_map_diff : t_iodelay_map  := fmc_iodelay_extract_fmc_pin(pin_diff => DIFF, pin_type => pin_type, pin_index => i, iodelay_map => g_idelay_map);
 		begin
 			G_IDELAY_HB_P_X : if c_tmp_map_p.dir_type /= DIRNONE generate
-				G_IDELAY_HB_P_X1 : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' generate
+				G_IDELAY_HB_P_X1 : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' and c_tmp_map_p.index /= 167 generate
 					constant c_out_index : natural := c_tmp_map_p.group_id * 17 + c_tmp_map_p.index;
 				begin
 					cmp_idelay_hb_n_x : idelay_general
 						generic map(
 							g_use_iob => true,
 							g_is_clk  => c_tmp_map_p.index = 16,
-							g_index   => c_tmp_map_p.index
+							g_index   => c_tmp_map_p.index,
+							g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_p.group_id)
 						)
 						port map(
 							idata_in      => s_fmc_in.HB_p(c_tmp_map_p.iob_index),
@@ -248,20 +285,24 @@ begin
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
+--				G_IDELAY_HB_P_CLK : if c_tmp_map_p.group_id /= -1 and c_tmp_map_p.iob_delay = '1' and c_tmp_map_p.index = 16 generate
+--                     s_fmc_out.HB_p(c_tmp_map_p.iob_index) <= s_fmc_in.HB_p(c_tmp_map_p.iob_index);
+--				end generate;
 				G_IDELAY_HB_P_X2 : if c_tmp_map_p.group_id = -1 or c_tmp_map_p.iob_delay /= '1' generate
 					s_fmc_out.HB_p(c_tmp_map_p.iob_index) <= s_fmc_in.HB_p(c_tmp_map_p.iob_index);
 				end generate;
 			end generate;
 
 			G_IDELAY_HB_N_X : if c_tmp_map_n.dir_type /= DIRNONE generate
-				G_IDELAY_HB_N_X1 : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' generate
+				G_IDELAY_HB_N_X1 : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' and c_tmp_map_n.index /= 167 generate
 					constant c_out_index : natural := c_tmp_map_n.group_id * 17 + c_tmp_map_n.index;
 				begin
 					cmp_idelay_hb_p_x : idelay_general
 						generic map(
 							g_use_iob => true,
 							g_is_clk  => c_tmp_map_n.index = 16,
-							g_index   => c_tmp_map_n.index
+							g_index   => c_tmp_map_n.index,
+							g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_n.group_id)
 						)
 						port map(
 							idata_in      => s_fmc_in.HB_n(c_tmp_map_n.iob_index),
@@ -271,20 +312,24 @@ begin
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
+--				G_IDELAY_HB_N_CLK : if c_tmp_map_n.group_id /= -1 and c_tmp_map_n.iob_delay = '1' and c_tmp_map_n.index = 16 generate
+--				  s_fmc_out.HB_n(c_tmp_map_n.iob_index) <= s_fmc_in.HB_n(c_tmp_map_n.iob_index);
+--				end generate;
 				G_IDELAY_HB_N_X2 : if c_tmp_map_n.group_id = -1 or c_tmp_map_n.iob_delay /= '1' generate
 					s_fmc_out.HB_n(c_tmp_map_n.iob_index) <= s_fmc_in.HB_n(c_tmp_map_n.iob_index);
 				end generate;
 			end generate;
 
 			G_IDELAY_HB_D_X : if c_tmp_map_diff.dir_type /= DIRNONE generate
-				G_IDELAY_HB_D_X1 : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' generate
+				G_IDELAY_HB_D_X1 : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' and c_tmp_map_diff.index /= 167 generate
 					constant c_out_index : natural := c_tmp_map_diff.group_id * 17 + c_tmp_map_diff.index;
 				begin
 					cmp_idelay_hb_d_x : idelay_general
 						generic map(
 							g_use_iob => true,
 							g_is_clk  => c_tmp_map_diff.index = 16,
-							g_index   => c_tmp_map_diff.index
+							g_index   => c_tmp_map_diff.index,
+							g_group_name => "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(c_tmp_map_diff.group_id)
 						)
 						port map(
 							idata_in      => s_fmc_in.HB_p(c_tmp_map_diff.iob_index),
@@ -294,6 +339,11 @@ begin
 							idelay_ctrl_o => s_idelay_ctrl_array(c_out_index)
 						);
 				end generate;
+				
+--				G_IDELAY_HB_D_CLK : if c_tmp_map_diff.group_id /= -1 and c_tmp_map_diff.iob_delay = '1' and c_tmp_map_diff.index = 16 generate
+--				  s_fmc_out.HB_p(c_tmp_map_diff.iob_index) <= s_fmc_in.HB_p(c_tmp_map_diff.iob_index);
+--				end generate;
+
 				G_IDELAY_HB_D_X2 : if c_tmp_map_diff.group_id = -1 or c_tmp_map_diff.iob_delay /= '1' generate
 					s_fmc_out.HB_p(c_tmp_map_diff.iob_index) <= s_fmc_in.HB_p(c_tmp_map_diff.iob_index);
 				end generate;
@@ -306,8 +356,8 @@ begin
 		constant c_tmp_group : t_iodelay_map_vector(fmc_iodelay_len_by_group(group_id => i, iodelay_map => g_idelay_map) - 1 downto 0) := fmc_iodelay_extract_group(group_id => i, iodelay_map => g_idelay_map);
 		signal tmp_array     : t_fmc_idelay_out_array(fmc_iodelay_len_by_group(group_id => i, iodelay_map => g_idelay_map) downto 0);
 		signal zero_vector_5 : std_logic_vector(4 downto 0);
+		attribute IODELAY_GROUP of U_IDELAYCTRL : label is "FMC" & integer'image(g_fmc_id) & "_IODELAY_" & integer'image(i);
 	begin
-	
 	    
         U_IDELAYCTRL : IDELAYCTRL
         port map (

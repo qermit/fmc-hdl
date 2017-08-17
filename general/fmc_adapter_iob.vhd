@@ -27,6 +27,7 @@ entity fmc_adapter_iob is
 	generic (
 	g_connector: t_fmc_connector_type := FMC_LPC;
 	g_use_jtag: boolean := false;
+	g_use_system_i2c : boolean := false;
 	g_use_inout: boolean:= true;
 	g_fmc_id    : natural := 1;
 	g_fmc_map   : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
@@ -303,6 +304,8 @@ end generate;
 end generate GEN_FMC_HPC;
 -- FMC i2c
 
+
+GEN_I2C: if g_use_system_i2c = true generate
 u_pinpair_iob_I2Cx: fmc_pinpair_iob 
     generic map (
       g_swap  => '0',
@@ -323,7 +326,7 @@ u_pinpair_iob_I2Cx: fmc_pinpair_iob
       fmc_p_dir => fmc_out_dir_i.scl,
       fmc_n_dir => fmc_out_dir_i.sda
       );
-
+end generate;
 
 GEN_JTAG: if g_use_jtag= true generate
  cmp_jtag: jtag_adapter_iob

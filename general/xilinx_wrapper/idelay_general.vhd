@@ -30,7 +30,8 @@ use UNISIM.VComponents.all;
 entity idelay_general is
 	generic(g_use_iob : boolean := true;
 		    g_is_clk  : boolean := false;
-		    g_index   : natural := 0);
+		    g_index   : natural := 0;
+		    g_group_name: string := "");
 	port(idata_in      : in  std_logic;
 		 idata_out     : out std_logic;
 		 idelay_clk_i  : in std_logic;
@@ -46,6 +47,8 @@ architecture RTL of idelay_general is
 	
 	signal s_ld: std_logic;
 	signal s_ce: std_logic;
+	signal s_regrst : std_logic := '0';
+	signal s_ldpipen : std_logic := '0';
 	
 	function isclk2str (constant is_clk : in boolean)
 		return string is
@@ -70,6 +73,9 @@ architecture RTL of idelay_general is
 		return "DATAIN";
 	end function useiob2str;
 	
+	attribute IODELAY_GROUP : string;
+	attribute IODELAY_GROUP of cmp_idelay : label is g_group_name;
+	
 	 
 begin
 	s_idatain <= idata_in when g_use_iob = true else '0';
@@ -84,6 +90,8 @@ begin
 	idelay_ctrl_o.cntvalueout <= s_cntvalueout when g_is_clk = true  and idelay_ctrl_i.clk_sel = '1' else
 						         s_cntvalueout when g_is_clk = false and idelay_ctrl_i.data_sel(g_index) = '1' else
 						      (others => '0');
+	
+	--s_regrst <= idelay_ctrl_i.
 	
 	cmp_idelay : IDELAYE2
 		generic map(
@@ -107,8 +115,8 @@ begin
 			IDATAIN     => s_idatain,
 			INC         => idelay_ctrl_i.inc,
 			LD          => s_ld,
-			LDPIPEEN    => '0',
-			REGRST      => '0'
+			LDPIPEEN    => s_ldpipen,
+			REGRST      => s_regrst
 		);
 	
 end architecture RTL;

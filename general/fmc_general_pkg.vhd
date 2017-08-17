@@ -51,6 +51,8 @@ package fmc_general_pkg is
 		clk_sel    : std_logic;
 		data_sel   : std_logic_vector(15 downto 0);
 		ctl_reset  : std_logic;
+		reg_reset  : std_logic;
+		ld_pipeen  : std_logic;
 	end record;
 
 	type t_fmc_idelay_out_array is array (natural range <>) of t_fmc_idelay_out;
@@ -135,6 +137,7 @@ package fmc_general_pkg is
 
 	subtype t_fmc_signals_out is t_fmc_signals_in;
 	subtype t_fmc_signals_bidir is t_fmc_signals_in;
+	type t_fmc_signals_bidir_array is array (natural range <>) of t_fmc_signals_bidir;
 
 
 
@@ -150,6 +153,21 @@ package fmc_general_pkg is
 		iob_ddr   : bit; 
 		iob_delay : bit;
 	end record t_iodelay_map;
+
+
+	type t_iddr_map is record    
+		iob_ddr   : bit;
+		group_id  : integer;
+		index     : t_pin_index;
+		
+		negation  : bit;
+		
+		iob_type  : t_fmc_pin_type;
+		iob_index : t_pin_index;
+		iob_diff  : t_fmc_iob_type;
+		
+	end record t_iddr_map;
+
 
 	type t_boardpin_map is record
 		iob_type  : t_fmc_pin_type;
@@ -174,6 +192,7 @@ package fmc_general_pkg is
 	
 	type t_boardpin_map_vector is array (natural range <>) of t_boardpin_map;
 	type t_iodelay_map_vector is array (natural range <>) of t_iodelay_map;
+	type t_iddr_map_vector is array(natural range <>) of t_iddr_map;
 	type t_fmc_pin_map_vector is array (natural range <>) of t_fmc_pin_map;
 
 	constant c_iodelay_map_empty : t_iodelay_map := (
@@ -246,9 +265,15 @@ package fmc_general_pkg is
 	function fmc_iodelay_len_by_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector) return natural;
 	function fmc_iodelay_len_by_type(constant pin_type : in t_fmc_pin_type; constant iodelay_map : in t_iodelay_map_vector) return natural;
 	function fmc_iodelay_extract_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector;
+	
+	
+	
 	function fmc_extract_by_direction(constant dir_type: in t_fmc_dir_type;  constant idelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector;	
 	function fmc_iodelay_extract_type(constant pin_type : in t_fmc_pin_type; constant iodelay_map : in t_iodelay_map_vector) return t_iodelay_map_vector;
-		
+	
+    function fmc_iddr_extract_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector; constant fmc_id: natural; constant fmc_map: t_fmc_pin_map_vector) return t_iddr_map_vector;		
+    function fmc_iddr_get_index(constant index: natural; constant iddr_map : in t_iddr_map_vector) return t_iddr_map;
+
 		
 	function fmc_boardpin_map_to_bitvector(constant pin_type: in t_fmc_pin_type; constant boardpin_map: in t_boardpin_map_vector) return bit_vector;
 	function fmc_pin_map_to_inv_vector(constant fmc_id: in integer; constant pin_type : in t_fmc_pin_type; constant fmc_pin_map : in t_fmc_pin_map_vector) return bit_vector;
@@ -277,6 +302,7 @@ package fmc_general_pkg is
    component fmc_adapter_iob
    	generic(g_connector      : t_fmc_connector_type := FMC_PLUS;
    		    g_use_jtag       : boolean              := false;
+   		    g_use_system_i2c : boolean              := false;
    		    g_use_inout      : boolean              := true;
    		    g_fmc_id         : natural              := 1;
    		    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
@@ -290,7 +316,11 @@ package fmc_general_pkg is
    end component fmc_adapter_iob;
    
    component fmc_adapter_idelay
-   	generic(g_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
+   	generic(
+   	  g_fmc_connector : t_fmc_connector_type := FMC_HPC;
+      g_fmc_id        : natural := 0;
+      g_idelay_map    : t_iodelay_map_vector := c_iodelay_map_nullvector
+    );
    	port(fmc_in     : in  t_fmc_signals_in;
    		 fmc_out    : out t_fmc_signals_in;
    		 
@@ -342,22 +372,27 @@ package fmc_general_pkg is
 	
 	
 	component fmc_adapter_iddr
-		generic(g_fmc_id         : natural              := 1;
-			    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
-			    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector);
-		port(fmc_in     : in  t_fmc_signals_in;
-			 fmc_out_q1 : out t_fmc_signals_in;
-			 
-			 ddr_clk    : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0);
-             q1         : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * 8 - 1 downto 0);
-             q2         : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * 8 - 1 downto 0)
-          );
+	generic(
+        g_fmc_id         : natural              := 1;
+        g_fmc_connector  : t_fmc_connector_type := FMC_HPC;
+        g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
+        g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector
+    );
+    Port(
+        fmc_in  : in  t_fmc_signals_in;
+        sdr_q   : out t_fmc_signals_in; -- provide all to output as they are
+
+        ddr_clk : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0);
+        ddr_q1  : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * 8 - 1 downto 0);
+        ddr_q2  : out std_logic_vector(fmc_iodelay_group_count(g_fmc_idelay_map) * 8 - 1 downto 0)
+    );
 	end component fmc_adapter_iddr;
 
   	component idelay_general
   		generic(g_use_iob : boolean := true;
   			    g_is_clk  : boolean := false;
-  			    g_index   : natural := 0);
+  			    g_index   : natural := 0;
+                g_group_name: string := "");
   		port(idata_in      : in  std_logic;
   			 idata_out     : out std_logic;
   			 idelay_clk_i  : in  std_logic;
@@ -387,9 +422,12 @@ package fmc_general_pkg is
    		    g_fmc_map        : t_fmc_pin_map_vector := c_fmc_pin_nullvector;
    		    g_fmc_idelay_map : t_iodelay_map_vector := c_iodelay_map_nullvector
     );
-   	port(fmc_out_i    : in  t_fmc_signals_out;
-   		 fmc_dir_i    : in  t_fmc_signals_out;
-   		 fmc_out_o    : out t_fmc_signals_out;
+   	port(fmc_out_i    : in  t_fmc_signals_out; -- from IO with group id = -1
+   		 fmc_dir_i    : in  t_fmc_signals_out; -- from IO with group id = -1
+   		 
+   		 fmc_out_o    : out t_fmc_signals_out; -- to FMC port
+   		 fmc_dir_o     : out t_fmc_signals_out; -- to FMC port
+
    		 groups_i     : in  std_logic_vector(g_count_per_group * fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0);
    		 groups_dir_i : in  std_logic_vector(g_count_per_group * fmc_iodelay_group_count(g_fmc_idelay_map) - 1 downto 0));
    end component fmc_adapter_injector;
@@ -588,8 +626,53 @@ package body fmc_general_pkg is
       return offsets;
     end function;
 
+
+    function fmc_idelay2iddr(constant iodelay_map: t_iodelay_map; constant fmc_map: t_fmc_pin_map) return t_iddr_map is
+      variable iddr: t_iddr_map;
+    begin
+      iddr.iob_ddr  := '1';
+      iddr.group_id := iodelay_map.group_id; 
+      iddr.index := iodelay_map.index;
+-- tmp - using xilinx series7 - no need to negate input when using ibufds_DIFF_OUT
+--      if iodelay_map.iob_diff = DIFF and fmc_map.iob_swap = '1' then
+--        iddr.negation := '1';
+--      else
+        iddr.negation := '0';
+--      end if;
+      iddr.iob_type := iodelay_map.iob_type;
+      iddr.iob_index := iodelay_map.iob_index;
+      iddr.iob_diff := iodelay_map.iob_diff;
+      return iddr;
+    end function;
     
+    function fmc_iddr_extract_group(constant group_id : in natural; constant iodelay_map : in t_iodelay_map_vector; constant fmc_id: natural; constant fmc_map: t_fmc_pin_map_vector) return t_iddr_map_vector is
+      variable iddr_group_entries : natural := fmc_iodelay_len_by_group(group_id, iodelay_map);
+      variable iddr_group_i : natural := 0;
+      variable iddr_group: t_iddr_map_vector(iddr_group_entries - 1 downto 0); 
+    begin
+      for i in fmc_map'range loop
+        if fmc_map(i).fmc_id = fmc_id then 
+        for j in iodelay_map'range loop -- todo: iodelay2iddr
+          if iodelay_map(j).group_id = group_id and iodelay_map(j).iob_ddr = '1' and iodelay_map(j).iob_type = fmc_map(i).iob_type and fmc_map(i).iob_index = iodelay_map(j).iob_index then
+            iddr_group(iddr_group_i) := fmc_idelay2iddr(iodelay_map(j), fmc_map(i));
+            iddr_group_i := iddr_group_i +1;
+          end if;
+        end loop;
+        end if;
+      end loop;
+      return iddr_group;
+    end function;
     
+    function fmc_iddr_get_index(constant index: natural; constant iddr_map : in t_iddr_map_vector) return t_iddr_map is
+      variable iddr: t_iddr_map;
+    begin
+      for i in iddr_map'range loop
+        if iddr_map(i).index = index then
+           iddr := iddr_map(i);
+        end if;
+      end loop;
+      return iddr;
+    end function;
 
 	
 	function fmc_pin_type_to_str(fmc_pin_type: t_fmc_pin_type) return string is
