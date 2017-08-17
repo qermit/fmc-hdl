@@ -37,7 +37,7 @@ end wb_fmc_idelay_ctl;
 architecture behavioral of wb_fmc_idelay_ctl is
   constant c_group_count : natural := fmc_iodelay_group_count(g_idelay_map);
   constant c_slave_interface_mode : t_wishbone_interface_mode := PIPELINED;
-  
+    
   signal wb_s2m : t_wishbone_slave_out;
   signal wb_m2s : t_wishbone_slave_in;
   
@@ -59,6 +59,11 @@ architecture behavioral of wb_fmc_idelay_ctl is
   
   signal address_to_decode: std_logic_vector(1 downto 0);
   signal s_cyc: std_logic_vector(c_group_count-1 downto 0);
+  
+  subtype T_SLV_32  is STD_LOGIC_VECTOR(31 downto 0);
+  type    T_SLVV_32 is array(NATURAL range <>) of T_SLV_32;
+  signal s_tmp_dat_o: T_SLVV_32(3 downto 0);
+  signal r_dat: T_SLVV_32(3 downto 0);
 begin
   
 
@@ -101,38 +106,74 @@ begin
      end case;
   end process;
 
+
+
+  
+  GEN_TMP_DAT_O: for i in s_tmp_dat_o'range generate
+     signal r_dat_tmp: std_logic_vector(31 downto 0);
+     --signal tmp_ctl_rdy: std_logic_vector(0 downto 0);
+  begin
+  --  31 - 16 15 14 - 12 11 10  9  8  7  6  5  4 - 0
+  --     |     |    |     |  |  |  |  |  |  |  \\|//         
+  --     |     |    R     |  |  |  |  |  |  |   \|/  
+  --     |     |    E     |  |  |  |  |  |  |    |  
+  --     |     |    S     |  |  |  |  |  |  |    +---------- ctrl_value_out/ctrl_value_in 
+  --     |     |    E     |  |  |  |  |  |  |   
+  --     |     |    R     |  |  |  |  |  |  +--------------- IDELAY_CTL_RDY (RO) 
+  --     |     |    V     |  |  |  |  |  +------------------ IDELAY_CTL_RESET
+  --     |     |    E     |  |  |  |  +--------------------- LD
+  --     |     |    D     |  |  |  +------------------------ CE
+  --     |     |    |     |  |  +--------------------------- INC
+  --     |     |          |  +------------------------------ LDPIPEEN ( used only in pipelined mode )
+  --     |     |          +--------------------------------- REGRST ( used only in pipelined mode )
+  --     |     |  
+  --     |     +-------------------------------------- CLK LINE SELECT
+  --     +-------------------------------------------- DATA LINE SELECT  
+  
+  
+     r_dat_tmp <= r_dat(i);
+     --s_tmp_dat_o(i) <= r_dat(31 downto 16) & r_dat(15) & "000" & r_dat(11 downto 6) & idelay_ctrl_out_i(i).ctl_rdy & idelay_ctrl_out_i(i).cntvalueout;
+     s_tmp_dat_o(i) <= r_dat_tmp(31 downto 16) & r_dat_tmp(15) & "000" & r_dat_tmp(11 downto 6) & idelay_ctrl_out_i(i).ctl_rdy & idelay_ctrl_out_i(i).cntvalueout;
+     
+     idelay_ctrl_in_o(i).cntvaluein  <= r_dat_tmp(4 downto 0);
+     idelay_ctrl_in_o(i).ctl_reset   <= r_dat_tmp(6) or (not rst_n_i);
+     idelay_ctrl_in_o(i).ld          <= r_dat_tmp(7);
+     idelay_ctrl_in_o(i).ce          <= r_dat_tmp(8);
+     idelay_ctrl_in_o(i).inc         <= r_dat_tmp(9);
+     idelay_ctrl_in_o(i).ld_pipeen   <= r_dat_tmp(10);
+     idelay_ctrl_in_o(i).reg_reset   <= r_dat_tmp(11);
+     
+     idelay_ctrl_in_o(i).clk_sel     <= r_dat_tmp(15); -- todo remove
+     idelay_ctrl_in_o(i).data_sel    <= r_dat_tmp(31 downto 16);
+       
+     
+  end generate;
+
 	
   p_data: process(clk_sys_i)
   begin
     if rising_edge(clk_sys_i) then
+      -- clear all data after one cycle
       for i in 0 to c_group_count - 1 loop
-        idelay_ctrl_in_o(i).inc         <= '0';
-        idelay_ctrl_in_o(i).ce          <= '0';
-        idelay_ctrl_in_o(i).ld          <= '0';
+        r_dat(i)(11 downto 7) <= "00000";
       end loop;
-      
       
       if rst_n_i = '0' then
         wb_s2m.dat <= (others => '0');   
         for i in 0 to c_group_count - 1 loop
-         idelay_ctrl_in_o(i).cntvaluein  <= (others => '0');
-         idelay_ctrl_in_o(i).clk_sel     <= '0';
-         idelay_ctrl_in_o(i).data_sel    <= (others => '0');
+         r_dat(i) <= x"00000000";
         end loop;
       else
         for i in 0 to c_group_count - 1 loop
+        
           if s_cyc(i) = '1' and wb_m2s.we = '1' then
-            idelay_ctrl_in_o(i).inc         <= wb_m2s.dat(7);
-            idelay_ctrl_in_o(i).ce          <= wb_m2s.dat(6);
-            idelay_ctrl_in_o(i).ld          <= wb_m2s.dat(5);
-            idelay_ctrl_in_o(i).cntvaluein  <= wb_m2s.dat(4 downto 0);
-            idelay_ctrl_in_o(i).clk_sel     <= wb_m2s.dat(15);
-            idelay_ctrl_in_o(i).data_sel    <= wb_m2s.dat(31 downto 16);
+            r_dat(i) <= wb_m2s.dat;
           end if;
+          
           if s_cyc(i) = '1' and wb_m2s.we = '0' then
-            --wb_s2m.dat(31 downto 16) <=
-            wb_s2m.dat(4 downto 0) <= idelay_ctrl_out_i(i).cntvalueout;
+            wb_s2m.dat <= s_tmp_dat_o(i);
           end if;
+          
         end loop;
       end if;
     end if;
