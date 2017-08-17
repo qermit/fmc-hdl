@@ -22,6 +22,8 @@ use IEEE.STD_LOGIC_1164.ALL;
 use ieee.numeric_std.all;
 
 use work.fmc_general_pkg.all;
+use work.fmc_wishbone_pkg.all;
+
 use work.wishbone_pkg.all;
 use work.wb_helpers_pkg.all;
 use work.wishbone_gsi_lobi_pkg.all;
@@ -37,7 +39,7 @@ entity fmc_adc_250m_16b_4cha is
 		g_address_granularity : t_wishbone_address_granularity := WORD;
 		g_use_tristate        : boolean                        := true;
 
-        g_enable_fmc_eeprom   : boolean                        := true;
+        g_enable_system_i2c   : boolean                        := true;
 		g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector;
 		g_master              : boolean                        := true;
 		
@@ -70,6 +72,9 @@ entity fmc_adc_250m_16b_4cha is
         adc3_data      : out std_logic_vector(15 downto 0);      
         adc3_tvalid    : OUT STD_LOGIC;
         adc3_tready    : in std_logic;
+
+        trig_in_o      : OUT STD_LOGIC;
+        trig_out_i     : in std_logic := '0' ;
                 
 		slave_i        : in    t_wishbone_slave_in;
 		slave_o        : out   t_wishbone_slave_out
@@ -98,24 +103,13 @@ architecture Behavioral of fmc_adc_250m_16b_4cha is
            axis_tdata : out STD_LOGIC_VECTOR (15 downto 0);
            axis_tvalid : out STD_LOGIC;
            axis_tready : in STD_LOGIC);
+           
+           
+           
 end component;
 
-  constant c_xwb_idelay_ctl_sdb : t_sdb_device := (
-  abi_class     => x"0000",              -- undocumented device
-  abi_ver_major => x"01",
-  abi_ver_minor => x"01",
-  wbd_endian    => c_sdb_endian_big,
-  wbd_width     => x"7",                 -- 8/16/32-bit port granularity
-  sdb_component => (
-    addr_first  => x"0000000000000000",
-    addr_last   => x"0000000000000fff",
-    product     => (
-      vendor_id => x"000000000000A8DF",  -- GSI PEN
-      device_id => x"b00000b5",
-      version   => x"00000001",
-      date      => x"20170208",
-      name      => "IODELAY CTL        ")));
-      
+
+          
 	constant c_adc_iodelaymap : t_iodelay_map_vector(adc_250m_pin_map'range) := adc_250m_pin_map;
 	constant c_test_bool :boolean := write_xdc("fmc"& integer'image(g_fmc_id) &"_loc.xdc", g_fmc_id , g_fmc_map, adc_250m_pin_map);
 	
@@ -124,7 +118,7 @@ end component;
 	signal s_fmc_out1 : t_fmc_signals_out;
 	signal s_fmc_dir1 : t_fmc_signals_out;
 
-	signal s_fmc_in2 : t_fmc_signals_in;
+	signal s_fmc_idelay2iddr : t_fmc_signals_in;
 
 	signal s_fmc_in_q1 : t_fmc_signals_in;
 
@@ -135,12 +129,19 @@ end component;
 
     signal s_ddr_clk: std_logic_vector(3 downto 0);
     
+    attribute keep : string;
+    
     signal s_adc_q1: std_logic_vector(8*4-1 downto 0) := (others => '0');
     signal s_adc_q2: std_logic_vector(8*4-1 downto 0) := (others => '0');
     signal s_adc0_data: std_logic_vector(15 downto 0) := (others => '0');
     signal s_adc1_data: std_logic_vector(15 downto 0) := (others => '0');
     signal s_adc2_data: std_logic_vector(15 downto 0) := (others => '0');
     signal s_adc3_data: std_logic_vector(15 downto 0) := (others => '0');
+    
+    attribute keep of s_adc0_data   : signal is "true";
+    attribute keep of s_adc1_data   : signal is "true";
+    attribute keep of s_adc2_data   : signal is "true";
+    attribute keep of s_adc3_data   : signal is "true";
  
     signal r_adc0_data      :  std_logic_vector(15 downto 0);
     signal r_adc0_tvalid    :  STD_LOGIC;
@@ -159,25 +160,29 @@ end component;
     
       --== Internal Wishbone Crossbar configuration ==--
     -- Number of master port(s) on the wishbone crossbar
-    constant c_NUM_WB_MASTERS : integer := 7;
     constant c_WB_MASTER_SYSTEM : natural := 0;  -- Mezzanine system I2C interface (EEPROM)
   
     -- Number of slave port(s) on the wishbone crossbar
-    constant c_NUM_WB_SLAVES : integer := 1;
-  
-    constant c_WB_SLAVE_FMC_SYS_I2C  : natural := 0;  -- Mezzanine system I2C interface (EEPROM)
-    constant c_WB_SLAVE_FMC_I2C_VCXO : natural := 1;  -- Mezzanine LED and trigger
-    constant c_WB_SLAVE_FMC_SPI_PLL  : natural := 2;  -- Mezzanine LED and trigger
-    constant c_WB_SLAVE_FMC_SPI_ADC  : natural := 3;  -- Mezzanine LED and trigger
-    constant c_WB_SLAVE_FMC_SPI_MON  : natural := 4;  -- Mezzanine Monitor SPI
-    constant c_WB_SLAVE_FMC_GPIO     : natural := 5;  -- Mezzanine LED and trigger
-    constant c_WB_SLAVE_FMC_IDELAY   : natural := 6;  -- IDELAY wb slave 
+    constant c_NUM_WB_UPSTREAM : integer := 1;
+
+    constant c_NUM_WB_DEVICES : integer := 8;
+      
+    constant c_WB_SLAVE_FMC_CSR      : natural := 0;
+    constant c_WB_SLAVE_FMC_SYS_I2C  : natural := 1;  -- Mezzanine system I2C interface (EEPROM)
+    
+    constant c_WB_SLAVE_FMC_I2C_VCXO : natural := 2;  -- Mezzanine LED and trigger
+    constant c_WB_SLAVE_FMC_SPI_PLL  : natural := 3;  -- Mezzanine LED and trigger
+    constant c_WB_SLAVE_FMC_SPI_ADC  : natural := 4;  -- Mezzanine LED and trigger
+    constant c_WB_SLAVE_FMC_SPI_MON  : natural := 5;  -- Mezzanine Monitor SPI
+    constant c_WB_SLAVE_FMC_GPIO     : natural := 6;  -- Mezzanine LED and trigger
+    constant c_WB_SLAVE_FMC_IDELAY   : natural := 7;  -- IDELAY wb slave 
         
       -- @todo: export sdb layouts to pkg files  
     -- Wishbone crossbar layout
-    constant c_INTERCONNECT_LAYOUT_req : t_sdb_record_array(c_NUM_WB_MASTERS-1 downto 0) :=
+    constant c_INTERCONNECT_LAYOUT_req : t_sdb_record_array(c_NUM_WB_DEVICES-1 downto 0) :=
       (
-        c_WB_SLAVE_FMC_SYS_I2C  => f_sdb_auto_device(c_xwb_i2c_master_sdb, g_enable_fmc_eeprom),
+        c_WB_SLAVE_FMC_CSR      => f_sdb_auto_device(c_xwb_fmc_csr_sdb_f, true),
+        c_WB_SLAVE_FMC_SYS_I2C  => f_sdb_auto_device(c_xwb_i2c_master_sdb, g_enable_system_i2c),
         c_WB_SLAVE_FMC_I2C_VCXO => f_sdb_auto_device(c_xwb_i2c_master_sdb, true, "I2C.Si57x"),
         c_WB_SLAVE_FMC_SPI_PLL  => f_sdb_auto_device(c_xwb_spi_sdb, true,"SPI.AD9510"),
         c_WB_SLAVE_FMC_SPI_ADC  => f_sdb_auto_device(c_xwb_spi_sdb, true,"SPI.ISLA216P"),
@@ -193,15 +198,15 @@ end component;
     constant c_INTERCONNECT_LAYOUT : t_sdb_record_array(c_INTERCONNECT_LAYOUT_req'range) := f_sdb_auto_layout(c_INTERCONNECT_LAYOUT_req);
      -- Self Describing Bus ROM Address. It will be an addressed slave as well.
     constant c_SDB_ADDRESS                    : t_wishbone_address := f_sdb_auto_sdb(c_INTERCONNECT_LAYOUT_req);
-    constant tmp2: boolean := sdb_dump_to_file("SDB_FMC_adc.txt", c_INTERCONNECT_LAYOUT, c_SDB_ADDRESS);
+    constant tmp2: boolean := sdb_dump_to_file("fmc"& integer'image(g_fmc_id) &"_adc250M_SDB.txt", c_INTERCONNECT_LAYOUT, c_SDB_ADDRESS);
      
       -- Wishbone buse(s) from crossbar master port(s)
-    signal cnx_master_out : t_wishbone_master_out_array(c_NUM_WB_MASTERS-1 downto 0);
-    signal cnx_master_in  : t_wishbone_master_in_array(c_NUM_WB_MASTERS-1 downto 0);
+    signal m_wishbone_m2s : t_wishbone_master_out_array(c_NUM_WB_DEVICES-1 downto 0);
+    signal m_wishbone_s2m  : t_wishbone_master_in_array(c_NUM_WB_DEVICES-1 downto 0);
   
     -- Wishbone buse(s) to crossbar slave port(s)
-    signal cnx_slave_out : t_wishbone_slave_out_array(c_NUM_WB_SLAVES-1 downto 0);
-    signal cnx_slave_in  : t_wishbone_slave_in_array(c_NUM_WB_SLAVES-1 downto 0);
+    signal cnx_slave_out : t_wishbone_slave_out_array(c_NUM_WB_UPSTREAM-1 downto 0);
+    signal cnx_slave_in  : t_wishbone_slave_in_array(c_NUM_WB_UPSTREAM-1 downto 0);
 
     
   --== Wishbone I2C master ==--
@@ -237,8 +242,8 @@ end component;
    constant c_gpio_pin_num : natural := 14;
    signal gpio_output : std_logic_vector(c_gpio_pin_num - 1 downto 0);
    signal gpio_input  : std_logic_vector(c_gpio_pin_num - 1 downto 0);
-   signal gpio_dir_tmp: std_logic_vector(c_gpio_pin_num - 1 downto 0);
-   signal gpio_dir    : std_logic_vector(c_gpio_pin_num - 1 downto 0);
+   signal gpio_dir_oe : std_logic_vector(c_gpio_pin_num - 1 downto 0);
+   signal gpio_dir_oen: std_logic_vector(c_gpio_pin_num - 1 downto 0);
    signal gpio_term   : std_logic_vector(c_gpio_pin_num - 1 downto 0);
    signal gpio_raw_o  : std_logic_vector(c_gpio_pin_num - 1 downto 0);
    signal gpio_raw_i  : std_logic_vector(c_gpio_pin_num - 1 downto 0);
@@ -258,42 +263,11 @@ end component;
    --                                                         |  +--------------------------------------MON DAVn
    --                                                         +---------------------------------------- VCXO_PD_L
                                                                                             
+
     
-    
-    component wb_fmc_idelay_ctl is
-       generic(
-           g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
-           g_address_granularity    : t_wishbone_address_granularity := WORD;
-           g_fmc_connector : t_fmc_connector_type := FMC_HPC;
-           g_idelay_map    : t_iodelay_map_vector := c_iodelay_map_nullvector
-       );
-       port (
-            clk_sys_i    : in std_logic;
-            rst_n_i      : in std_logic;
-               -- Master connections (INTERCON is a slave)
-           slave_i       : in  t_wishbone_slave_in;
-           slave_o       : out t_wishbone_slave_out;
    
-           idelay_ctrl_clk_o : out std_logic_vector(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0);
-           idelay_ctrl_in_o  : out t_fmc_idelay_in_array(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0);
-           idelay_ctrl_out_i : in  t_fmc_idelay_out_array(fmc_iodelay_group_count(g_idelay_map) - 1 downto 0)
-           
-       );
-   end component;       
+   signal s_fmc_enable: std_logic;
    
-   
-   component fmc_adc_ila is 
-   port (
-       clk : in std_logic;
-   
-   
-       probe0 : in std_logic_vector(15 downto 0);  
-       probe1 : in std_logic_vector(15 downto 0); 
-       probe2 : in std_logic_vector(15 downto 0); 
-       probe3 : in std_logic_vector(15 downto 0); 
-       probe4 : in std_logic_vector(7 downto 0)
-   );                                                                                               
-   end component;
 begin
 
   debug_raw_o <= s_debug_raw_o; 
@@ -304,6 +278,7 @@ begin
 		generic map(
 			g_connector      => FMC_HPC,
 			g_use_jtag       => false,
+			g_use_system_i2c => g_enable_system_i2c,
 			g_use_inout      => true,
 			g_fmc_id         => g_fmc_id,
 			g_fmc_map        => g_fmc_map,
@@ -320,11 +295,12 @@ begin
 
 	cmp_fmc_idelay : fmc_adapter_idelay
 		generic map(
+		    g_fmc_id => g_fmc_id,
 			g_idelay_map => c_adc_iodelaymap
 		)
 		port map(
 			fmc_in            => s_fmc_in1,
-			fmc_out           => s_fmc_in2,
+			fmc_out           => s_fmc_idelay2iddr,
 			
 			refclk_i          => refclk_i,
 			
@@ -340,83 +316,31 @@ begin
 			g_fmc_idelay_map => c_adc_iodelaymap
 		)
 		port map(
-			fmc_in     => s_fmc_in2,
-			fmc_out_q1 => s_fmc_in_q1,
+			fmc_in     => s_fmc_idelay2iddr,
+			sdr_q => s_fmc_in_q1,
 			
 			ddr_clk => s_ddr_clk,
-			q1 => s_adc_q1,
-			q2 => s_adc_q2
+			ddr_q1 => s_adc_q1,
+			ddr_q2 => s_adc_q2
 		);
 
-      s_adc0_data(0)  <= s_adc_q1(0);
-      s_adc0_data(1)  <= s_adc_q2(0);
-      s_adc0_data(2)  <= s_adc_q1(1);
-      s_adc0_data(3)  <= s_adc_q2(1);
-      s_adc0_data(4)  <= s_adc_q1(2);
-      s_adc0_data(5)  <= s_adc_q2(2);
-      s_adc0_data(6)  <= s_adc_q1(3);
-      s_adc0_data(7)  <= s_adc_q2(3);
-      s_adc0_data(8)  <= s_adc_q1(4);
-      s_adc0_data(9)  <= s_adc_q2(4);
-      s_adc0_data(10) <= s_adc_q1(5);
-      s_adc0_data(11) <= s_adc_q2(5);
-      s_adc0_data(12) <= s_adc_q1(6);
-      s_adc0_data(13) <= s_adc_q2(6);
-      s_adc0_data(14) <= s_adc_q1(7);
-      s_adc0_data(15) <= s_adc_q2(7);
 
-      s_adc1_data(0)  <= s_adc_q1(1*8+0);
-      s_adc1_data(1)  <= s_adc_q2(1*8+0);
-      s_adc1_data(2)  <= s_adc_q1(1*8+1);
-      s_adc1_data(3)  <= s_adc_q2(1*8+1);
-      s_adc1_data(4)  <= s_adc_q1(1*8+2);
-      s_adc1_data(5)  <= s_adc_q2(1*8+2);
-      s_adc1_data(6)  <= s_adc_q1(1*8+3);
-      s_adc1_data(7)  <= s_adc_q2(1*8+3);
-      s_adc1_data(8)  <= s_adc_q1(1*8+4);
-      s_adc1_data(9)  <= s_adc_q2(1*8+4);
-      s_adc1_data(10) <= s_adc_q1(1*8+5);
-      s_adc1_data(11) <= s_adc_q2(1*8+5);
-      s_adc1_data(12) <= s_adc_q1(1*8+6);
-      s_adc1_data(13) <= s_adc_q2(1*8+6);
-      s_adc1_data(14) <= s_adc_q1(1*8+7);
-      s_adc1_data(15) <= s_adc_q2(1*8+7);
 
-      s_adc2_data(0)  <= s_adc_q1(2*8+0);
-      s_adc2_data(1)  <= s_adc_q2(2*8+0);
-      s_adc2_data(2)  <= s_adc_q1(2*8+1);
-      s_adc2_data(3)  <= s_adc_q2(2*8+1);
-      s_adc2_data(4)  <= s_adc_q1(2*8+2);
-      s_adc2_data(5)  <= s_adc_q2(2*8+2);
-      s_adc2_data(6)  <= s_adc_q1(2*8+3);
-      s_adc2_data(7)  <= s_adc_q2(2*8+3);
-      s_adc2_data(8)  <= s_adc_q1(2*8+4);
-      s_adc2_data(9)  <= s_adc_q2(2*8+4);
-      s_adc2_data(10) <= s_adc_q1(2*8+5);
-      s_adc2_data(11) <= s_adc_q2(2*8+5);
-      s_adc2_data(12) <= s_adc_q1(2*8+6);
-      s_adc2_data(13) <= s_adc_q2(2*8+6);
-      s_adc2_data(14) <= s_adc_q1(2*8+7);
-      s_adc2_data(15) <= s_adc_q2(2*8+7);
+GEN_DDR2SADC: for i in 0 to 7 generate
+      s_adc0_data(2*i+0)  <= s_adc_q2(i);
+      s_adc0_data(2*i+1)  <= s_adc_q1(i);
+      
+      s_adc1_data(2*i+0)  <= s_adc_q2(1*8+i);
+      s_adc1_data(2*i+1)  <= s_adc_q1(1*8+i);
 
-      s_adc3_data(0)  <= s_adc_q1(3*8+0);
-      s_adc3_data(1)  <= s_adc_q2(3*8+0);
-      s_adc3_data(2)  <= s_adc_q1(3*8+1);
-      s_adc3_data(3)  <= s_adc_q2(3*8+1);
-      s_adc3_data(4)  <= s_adc_q1(3*8+2);
-      s_adc3_data(5)  <= s_adc_q2(3*8+2);
-      s_adc3_data(6)  <= s_adc_q1(3*8+3);
-      s_adc3_data(7)  <= s_adc_q2(3*8+3);
-      s_adc3_data(8)  <= s_adc_q1(3*8+4);
-      s_adc3_data(9)  <= s_adc_q2(3*8+4);
-      s_adc3_data(10) <= s_adc_q1(3*8+5);
-      s_adc3_data(11) <= s_adc_q2(3*8+5);
-      s_adc3_data(12) <= s_adc_q1(3*8+6);
-      s_adc3_data(13) <= s_adc_q2(3*8+6);
-      s_adc3_data(14) <= s_adc_q1(3*8+7);
-      s_adc3_data(15) <= s_adc_q2(3*8+7);
+      s_adc2_data(2*i+0)  <= s_adc_q2(2*8+i);
+      s_adc2_data(2*i+1)  <= s_adc_q1(2*8+i);
+
+      s_adc3_data(2*i+0)  <= s_adc_q2(3*8+i);
+      s_adc3_data(2*i+1)  <= s_adc_q1(3*8+i);
+end generate;
             
-      adc_clk_o <= s_ddr_clk(1);
+     adc_clk_o <= s_ddr_clk(1);
       
 
     U_fifo_adc0: in_fifo_16b 
@@ -435,6 +359,7 @@ begin
         axis_tvalid => r_adc0_tvalid,
         axis_tready => r_adc0_tready
         );
+
 
     adc0_data <= r_adc0_data;
     adc0_tvalid <= r_adc0_tvalid;
@@ -504,22 +429,7 @@ begin
     adc3_tvalid <= r_adc3_tvalid;
     r_adc3_tready <= adc3_tready;
 
-GEN_ILA_DATA: if false generate 
-signal s_probe4 : std_logic_vector(7 downto 0);
 
-begin
-   U_data_ila: fmc_adc_ila 
-   port map (
-       clk => adc_clk_i,
-       probe0 => r_adc0_data,  
-       probe1 => r_adc1_data, 
-       probe2 => r_adc2_data, 
-       probe3 => r_adc3_data, 
-       probe4 => s_probe4
-   );                                          
-   
-   s_probe4 <= r_adc3_tready & r_adc3_tvalid & r_adc2_tready & r_adc2_tvalid & r_adc1_tready & r_adc1_tvalid & r_adc0_tready & r_adc0_tvalid;                                                   
-end generate;   
         
 
   cnx_slave_in(c_WB_MASTER_SYSTEM) <= slave_i;
@@ -527,8 +437,8 @@ end generate;
 
   U_sdb_crossbar : xwb_sdb_crossbar
     generic map (
-      g_num_masters => c_NUM_WB_SLAVES,
-      g_num_slaves  => c_NUM_WB_MASTERS,
+      g_num_masters => c_NUM_WB_UPSTREAM,
+      g_num_slaves  => c_NUM_WB_DEVICES,
       g_registered  => true,
       g_wraparound  => true,
       g_layout      => c_INTERCONNECT_LAYOUT,
@@ -539,12 +449,92 @@ end generate;
       rst_n_i   => rst_n_i,
       slave_i   => cnx_slave_in,
       slave_o   => cnx_slave_out,
-      master_i  => cnx_master_in,
-      master_o  => cnx_master_out
+      master_i  => m_wishbone_s2m,
+      master_o  => m_wishbone_m2s
       );
 
+
+cmp_fmc_csr: xwb_fmc_csr
+    generic  map (
+    g_interface_mode         => g_interface_mode,
+    g_address_granularity    => g_address_granularity,  
+  
+    g_enable_system_i2c   => g_enable_system_i2c,
+    g_enable_pg_m2c       => false,
+    g_enable_pg_c2m       => false,
+    g_enable_prsntl       => false,
+    
+    g_fmc_id              => g_fmc_id
+    )
+  Port map  (
+    clk_i        => clk_i,
+    rst_n_i      => rst_n_i,
+	
+	--== Wishbone ==--	
+	s_wb_m2s     => m_wishbone_m2s(c_WB_SLAVE_FMC_CSR),
+    s_wb_s2m     => m_wishbone_s2m(c_WB_SLAVE_FMC_CSR),
+    
+    
+    pg_m2c_i => '0',
+    pg_c2m_i => '0',
+    prsntl_i => '1',
+    fmc_enable_o => s_fmc_enable
+    );
+
+    GEN_ILA_WB_CROSSBAR: if false generate
+       signal ila_user : std_logic_vector(31 downto 0);
+       constant c_mon_cs_num : natural := 1;
+       constant c_adc_cs_num : natural := 4;
+       constant c_pll_cs_num : natural := 1;
+       
+       begin
+         
+         
+      U_ila_wb: xwb_ila_wishbone 
+             Port map( 
+             
+             clk => clk_i,
+             -- slave wishbone port
+             s_wb_m2s => cnx_slave_in(c_WB_MASTER_SYSTEM),
+             s_wb_s2m => cnx_slave_out(c_WB_MASTER_SYSTEM),
+             s_user => ila_user
+             );
+         
+         
+         ila_user(0) <= mon_sclk_o;
+         ila_user(1) <= mon_mosi_o;
+         ila_user(2) <= mon_miso_i;
+         ila_user(3) <= '0';
+
+         ila_user(4 downto 4) <= mon_cs_o;
+         ila_user(7 downto 5) <= (others => '1'); -- emulate chip select
+
+         ila_user(8) <= pll_sclk_o;
+         ila_user(9) <= pll_mosi_o;
+         ila_user(10) <= pll_miso_i;
+         ila_user(11) <= '0';
+         ila_user(12 downto 12) <= pll_cs_o;
+         ila_user(15 downto 13) <= (others => '1');
+
+         ila_user(16) <= adc_sclk_o;
+         ila_user(17) <= adc_mosi_o;
+         ila_user(18) <= adc_miso_i;
+         ila_user(19) <= gpio_output(10); -- check reset
+         ila_user(23 downto 20) <= adc_cs_o;
+         
+
+         ila_user(24) <= vcxo_scl_in;
+         ila_user(25) <= vcxo_sda_in;
+
+         
+         ila_user(30 downto 26) <= (others => '0');
+         
+         ila_user(31) <= rst_n_i;
+    end generate;  
+
+
       
-    GEN_I2C: if g_enable_fmc_eeprom = true generate
+    GEN_I2C: if g_enable_system_i2c = true generate
         ------------------------------------------------------------------------------
         -- Mezzanine system managment I2C master
         --    Access to mezzanine EEPROM
@@ -558,8 +548,8 @@ end generate;
             clk_sys_i => clk_i,
             rst_n_i   => rst_n_i,
       
-            slave_i => cnx_master_out(c_WB_SLAVE_FMC_SYS_I2C),
-            slave_o => cnx_master_in(c_WB_SLAVE_FMC_SYS_I2C),
+            slave_i => m_wishbone_m2s(c_WB_SLAVE_FMC_SYS_I2C),
+            slave_o => m_wishbone_s2m(c_WB_SLAVE_FMC_SYS_I2C),
             desc_o  => open,
       
             scl_pad_i(0)    => sys_scl_in,
@@ -577,6 +567,25 @@ end generate;
         -- Mezzanine system managment I2C master
         --    Access to mezzanine EEPROM
         ------------------------------------------------------------------------------
+        
+BLK_vcxo_i2c: if true generate 
+ signal local_wb_m2s       : t_wishbone_slave_in;
+ signal local_wb_s2m       : t_wishbone_slave_out;
+begin
+        
+          cmp_xwb_decoupler: xwb_decoupler 
+          Port map (
+            enable_i      => s_fmc_enable,
+            
+            --== Wishbone ==--    
+            s_wb_m2s      => m_wishbone_m2s(c_WB_SLAVE_FMC_I2C_VCXO),
+            s_wb_s2m      => m_wishbone_s2m(c_WB_SLAVE_FMC_I2C_VCXO),
+        
+            m_wb_m2s      => local_wb_m2s,
+            m_wb_s2m      => local_wb_s2m
+            
+            );
+                    
         U_fmc_vcxo_i2c : xwb_i2c_master
           generic map(
             g_interface_mode      => g_interface_mode,
@@ -586,8 +595,8 @@ end generate;
             clk_sys_i => clk_i,
             rst_n_i   => rst_n_i,
       
-            slave_i => cnx_master_out(c_WB_SLAVE_FMC_I2C_VCXO),
-            slave_o => cnx_master_in(c_WB_SLAVE_FMC_I2C_VCXO),
+            slave_i => local_wb_m2s,
+            slave_o => local_wb_s2m,
             desc_o  => open,
       
             scl_pad_i(0)    => vcxo_scl_in,
@@ -598,20 +607,35 @@ end generate;
             sda_padoen_o(0) => vcxo_sda_oe_n
             );
 
-     s_fmc_out1.LA_p(6) <= vcxo_scl_out;
-     s_fmc_dir1.LA_P(6) <= vcxo_scl_oe_n;
-     vcxo_scl_in <= s_fmc_in_q1.LA_p(6);
-     
-     s_fmc_out1.LA_n(6) <= vcxo_sda_out;
-     s_fmc_dir1.LA_n(6) <= vcxo_sda_oe_n;
-     vcxo_sda_in <= s_fmc_in_q1.LA_n(6);
-   
-     s_debug_raw_o(0) <= vcxo_scl_in;
-     s_debug_raw_o(1) <= vcxo_sda_in;
-     --s_debug_raw_o(0) <= '0';
-     --s_debug_raw_o(1) <= '0';
-     
+end generate;  
 
+  s_fmc_out1.LA_p(6) <= vcxo_scl_out;
+  s_fmc_dir1.LA_P(6) <= vcxo_scl_oe_n;
+  vcxo_scl_in <= s_fmc_in_q1.LA_p(6);
+     
+  s_fmc_out1.LA_n(6) <= vcxo_sda_out;
+  s_fmc_dir1.LA_n(6) <= vcxo_sda_oe_n;
+  vcxo_sda_in <= s_fmc_in_q1.LA_n(6);
+  
+     
+BLK_pll_spi: if true generate 
+ signal local_wb_m2s       : t_wishbone_slave_in;
+ signal local_wb_s2m       : t_wishbone_slave_out;
+begin
+        
+          cmp_xwb_decoupler: xwb_decoupler 
+          Port map (
+            enable_i      => s_fmc_enable,
+            
+            --== Wishbone ==--    
+            s_wb_m2s      => m_wishbone_m2s(c_WB_SLAVE_FMC_SPI_PLL),
+            s_wb_s2m      => m_wishbone_s2m(c_WB_SLAVE_FMC_SPI_PLL),
+        
+            m_wb_m2s      => local_wb_m2s,
+            m_wb_s2m      => local_wb_s2m
+            
+            );
+            
       U_fmc_pll_spi: xwb_spi
               generic map(
                 g_interface_mode      => g_interface_mode,
@@ -623,8 +647,8 @@ end generate;
                 clk_sys_i  => clk_i,
                 rst_n_i    => rst_n_i,
                 
-                slave_i    => cnx_master_out(c_WB_SLAVE_FMC_SPI_PLL),
-                slave_o    => cnx_master_in(c_WB_SLAVE_FMC_SPI_PLL),
+                slave_i    => local_wb_m2s,
+                slave_o    => local_wb_s2m,
                 desc_o     => open,
                 
                 pad_cs_o   => pll_cs_o,
@@ -632,18 +656,31 @@ end generate;
                 pad_mosi_o => pll_mosi_o,
                 pad_miso_i => pll_miso_i
               );
+end generate;
 
      s_fmc_out1.HA_p(21) <= pll_cs_o(0);
      s_fmc_out1.HA_p(22) <= pll_sclk_o;
      s_fmc_out1.HA_n(21) <= pll_mosi_o;
      pll_miso_i <= s_fmc_in_q1.HA_p(23);
 
-     s_debug_raw_o(2) <= pll_sclk_o;
-     s_debug_raw_o(3) <= pll_mosi_o;
-     s_debug_raw_o(4) <= pll_miso_i;
-
-
-
+BLK_adc_spi: if true generate 
+ signal local_wb_m2s       : t_wishbone_slave_in;
+ signal local_wb_s2m       : t_wishbone_slave_out;
+begin
+        
+          cmp_xwb_decoupler: xwb_decoupler 
+          Port map (
+            enable_i      => s_fmc_enable,
+            
+            --== Wishbone ==--    
+            s_wb_m2s      => m_wishbone_m2s(c_WB_SLAVE_FMC_SPI_ADC),
+            s_wb_s2m      => m_wishbone_s2m(c_WB_SLAVE_FMC_SPI_ADC),
+        
+            m_wb_m2s      => local_wb_m2s,
+            m_wb_s2m      => local_wb_s2m
+            
+            );
+                 
       U_fmc_adc_spi: xwb_spi
               generic map(
                 g_interface_mode      => g_interface_mode,
@@ -655,8 +692,8 @@ end generate;
                 clk_sys_i  => clk_i,
                 rst_n_i    => rst_n_i,
                 
-                slave_i    => cnx_master_out(c_WB_SLAVE_FMC_SPI_ADC),
-                slave_o    => cnx_master_in(c_WB_SLAVE_FMC_SPI_ADC),
+                slave_i    => local_wb_m2s,
+                slave_o    => local_wb_s2m,
                 desc_o     => open,
                 
                 pad_cs_o   => adc_cs_o,
@@ -664,6 +701,7 @@ end generate;
                 pad_mosi_o => adc_mosi_o,
                 pad_miso_i => adc_miso_i
               );
+end generate;             
               
       s_fmc_out1.LA_n(10) <= adc_cs_o(0);
       s_fmc_out1.LA_n( 9) <= adc_cs_o(1);
@@ -672,8 +710,31 @@ end generate;
       s_fmc_out1.LA_p(14) <= adc_sclk_o;
       s_fmc_out1.LA_n(14) <= adc_mosi_o;
       adc_miso_i <= s_fmc_in_q1.LA_n( 5);
+
+     s_debug_raw_o(0) <= adc_cs_o(0);
+     s_debug_raw_o(1) <= adc_cs_o(1);
+     s_debug_raw_o(2) <= adc_sclk_o;
+     s_debug_raw_o(3) <= adc_mosi_o;
+     s_debug_raw_o(4) <= adc_miso_i;
     
-    
+BLK_mon_spi: if true generate 
+ signal local_wb_m2s       : t_wishbone_slave_in;
+ signal local_wb_s2m       : t_wishbone_slave_out;
+begin
+        
+          cmp_xwb_decoupler: xwb_decoupler 
+          Port map (
+            enable_i      => s_fmc_enable,
+            
+            --== Wishbone ==--    
+            s_wb_m2s      => m_wishbone_m2s(c_WB_SLAVE_FMC_SPI_MON),
+            s_wb_s2m      => m_wishbone_s2m(c_WB_SLAVE_FMC_SPI_MON),
+        
+            m_wb_m2s      => local_wb_m2s,
+            m_wb_s2m      => local_wb_s2m
+            
+            );
+                 
       U_fmc_mon_spi: xwb_spi
               generic map(
                 g_interface_mode      => g_interface_mode,
@@ -685,8 +746,8 @@ end generate;
                 clk_sys_i  => clk_i,
                 rst_n_i    => rst_n_i,
                 
-                slave_i    => cnx_master_out(c_WB_SLAVE_FMC_SPI_MON),
-                slave_o    => cnx_master_in(c_WB_SLAVE_FMC_SPI_MON),
+                slave_i    => local_wb_m2s,
+                slave_o    => local_wb_s2m,
                 desc_o     => open,
                 
                 pad_cs_o   => mon_cs_o,
@@ -694,13 +755,32 @@ end generate;
                 pad_mosi_o => mon_mosi_o,
                 pad_miso_i => mon_miso_i
               );
+end generate;             
 
      s_fmc_out1.LA_n(30) <= mon_cs_o(0);
      s_fmc_out1.LA_p(31) <= mon_sclk_o;
      s_fmc_out1.LA_n(31) <= mon_mosi_o;
      mon_miso_i <= s_fmc_in_q1.LA_p(30);
+
               
-      
+BLK_GPIO: if true generate 
+ signal local_wb_m2s       : t_wishbone_slave_in;
+ signal local_wb_s2m       : t_wishbone_slave_out;
+begin
+        
+          cmp_xwb_decoupler: xwb_decoupler 
+          Port map (
+            enable_i      => s_fmc_enable,
+            
+            --== Wishbone ==--    
+            s_wb_m2s      => m_wishbone_m2s(c_WB_SLAVE_FMC_GPIO),
+            s_wb_s2m      => m_wishbone_s2m(c_WB_SLAVE_FMC_GPIO),
+        
+            m_wb_m2s      => local_wb_m2s,
+            m_wb_s2m      => local_wb_s2m
+            
+            );
+                       
      U_fmc_GPIO : xwb_gpio_raw
        generic map(
          g_interface_mode                        => g_interface_mode,
@@ -714,23 +794,24 @@ end generate;
          rst_n_i                                 => rst_n_i,
    
          -- Wishbone
-         slave_i                                 => cnx_master_out(c_WB_SLAVE_FMC_GPIO),
-         slave_o                                 => cnx_master_in(c_WB_SLAVE_FMC_GPIO),
+         slave_i                                 => local_wb_m2s,
+         slave_o                                 => local_wb_s2m,
         
          desc_o                                  => open,    -- Not implemented
    
          --gpio_b : inout std_logic_vector(g_num_pins-1 downto 0);
          gpio_out_o                              => gpio_output,
          gpio_in_i                               => gpio_input,
-         gpio_oen_o                              => gpio_dir_tmp,
+         gpio_oe_o                               => gpio_dir_oe,
          gpio_term_o                             => gpio_term,
    
          -- AltF raw interface    
          raw_o => gpio_raw_o,
          raw_i => gpio_raw_i
          );
+end generate;             
   
-  gpio_dir <= not gpio_dir_tmp;
+  gpio_dir_oen <= not gpio_dir_oe;
 
 GEN_BUG: if g_buggy_transistors = true generate
 
@@ -744,11 +825,11 @@ GEN_BUG: if g_buggy_transistors = true generate
   s_fmc_out1.LA_n(24) <= gpio_output(2);
   s_fmc_dir1.LA_n(24) <= C_FMC_DIR_OUT;
   
-  s_fmc_dir1.LA_p(33) <= gpio_dir(3);
+  s_fmc_dir1.LA_p(33) <= gpio_dir_oen(3);
   s_fmc_out1.LA_p(33) <= gpio_output(3);
   gpio_input(3)       <= s_fmc_in_q1.LA_p(33);
   s_fmc_dir1.LA_p(27) <= C_FMC_DIR_OUT;
-  s_fmc_out1.LA_p(27) <= not gpio_dir_tmp(3); -- trig dir
+  s_fmc_out1.LA_p(27) <= gpio_dir_oen(3); -- trig dir
 
   s_fmc_dir1.LA_p(24) <= C_FMC_DIR_OUT;
   s_fmc_out1.LA_p(24) <= gpio_term(3);
@@ -768,11 +849,11 @@ GEN_NOBUG: if g_buggy_transistors = false generate
   s_fmc_out1.LA_p(29) <= gpio_output(2);
   s_fmc_dir1.LA_p(29) <= C_FMC_DIR_OUT;
   
-  s_fmc_dir1.LA_p(33) <= gpio_dir(3);
+  s_fmc_dir1.LA_p(33) <= gpio_dir_oen(3);
   s_fmc_out1.LA_p(33) <= gpio_output(3);
   gpio_input(3)       <= s_fmc_in_q1.LA_p(33);
   s_fmc_dir1.LA_p(27) <= C_FMC_DIR_OUT;
-  s_fmc_out1.LA_p(27) <= not gpio_dir_tmp(3); -- trig dir
+  s_fmc_out1.LA_p(27) <= gpio_dir_oen(3); -- trig dir
   s_fmc_dir1.LA_n(27) <= C_FMC_DIR_OUT;
   s_fmc_out1.LA_n(27) <= gpio_term(3);
 
@@ -783,24 +864,24 @@ end generate;
   
   gpio_input(4)       <= s_fmc_in_q1.HA_p(18); -- PLL Status
   s_fmc_out1.HA_n(18) <= gpio_output(5);       -- PLL Function
-  s_fmc_dir1.HA_n(18) <= gpio_dir(5);      -- PLL Function
+  s_fmc_dir1.HA_n(18) <= gpio_dir_oen(5);      -- PLL Function
   
   s_fmc_out1.HA_n(23) <= gpio_output(7);       -- PLL PDn
   s_fmc_dir1.HA_n(23) <= C_FMC_DIR_OUT;        -- PLL PDn
   s_fmc_out1.HA_n(22) <= gpio_output(8);       -- PLL CLK SEL
-  s_fmc_dir1.HA_n(22) <= gpio_dir(8);      -- PLL CLK SEL
+  s_fmc_dir1.HA_n(22) <= gpio_dir_oen(8);      -- PLL CLK SEL
   
   s_fmc_out1.HA_n(12) <= gpio_output(9);       -- ADC SLEEP
-  s_fmc_dir1.HA_n(12) <= gpio_dir(9);      -- ADC SLEEP
-  s_fmc_out1.HA_p(23) <= gpio_output(10);      -- ADC RESET
-  s_fmc_dir1.HA_p(23) <= gpio_dir(10);     -- ADC RESET
+  s_fmc_dir1.HA_n(12) <= gpio_dir_oen(9);      -- ADC SLEEP
+  s_fmc_out1.HA_p(13) <= gpio_output(10);      -- ADC RESET
+  s_fmc_dir1.HA_p(13) <= gpio_dir_oen(10);     -- ADC RESET
   s_fmc_out1.LA_p(32) <= gpio_output(11);      -- ADC CLKDIVRST
-  s_fmc_dir1.LA_p(32) <= gpio_dir(11);     -- ADC CLKDIVRST
+  s_fmc_dir1.LA_p(32) <= gpio_dir_oen(11);     -- ADC CLKDIVRST
   
   gpio_input(12)      <= s_fmc_in_q1.LA_n(28); -- MON DAVn
   
   s_fmc_out1.LA_p( 5) <= gpio_output(13);      -- VCXO PD L
-  s_fmc_dir1.LA_p( 5) <= gpio_dir(13);     -- VCXO PD L
+  s_fmc_dir1.LA_p( 5) <= gpio_dir_oen(13);     -- VCXO PD L
   
 
   process(clk_i)
@@ -819,8 +900,27 @@ end generate;
   end process;
         
         
-  gpio_raw_i(3) <= s_ddr_clk(1);
+  gpio_raw_i(3) <= trig_out_i;
+  trig_in_o <= gpio_raw_o(3);
 
+
+BLK_IODELAY: block
+  signal local_wb_m2s       : t_wishbone_slave_in;
+  signal local_wb_s2m       : t_wishbone_slave_out;
+begin
+
+  cmp_xwb_decoupler: xwb_decoupler 
+  Port map (
+    enable_i      => s_fmc_enable,
+	
+	--== Wishbone ==--	
+	s_wb_m2s      => m_wishbone_m2s(c_WB_SLAVE_FMC_IDELAY),
+    s_wb_s2m      => m_wishbone_s2m(c_WB_SLAVE_FMC_IDELAY),
+
+	m_wb_m2s      => local_wb_m2s,
+    m_wb_s2m      => local_wb_s2m
+    
+    );
 
     U_idelay_ctl : wb_fmc_idelay_ctl
        generic map(
@@ -833,8 +933,8 @@ end generate;
             clk_sys_i    => clk_i,
             rst_n_i      => rst_n_i,
                -- Master connections (INTERCON is a slave)
-           slave_i       => cnx_master_out(c_WB_SLAVE_FMC_IDELAY),
-           slave_o       => cnx_master_in(c_WB_SLAVE_FMC_IDELAY),
+           slave_i       => local_wb_m2s,
+           slave_o       => local_wb_s2m,
    
            idelay_ctrl_clk_o => s_idelay_ctrl_clk,
            idelay_ctrl_in_o  => s_idelay_ctrl_in,
@@ -842,7 +942,7 @@ end generate;
            
        );
     
-  
+end block;  
 
                  
 

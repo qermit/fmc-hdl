@@ -107,6 +107,7 @@ architecture Behavioral of fmc_dio_32chlvdsa is
 
   --== Wishbone 1-Wire master ==--
   signal mezz_cs  : std_logic_vector(0 downto 0);
+  signal mezz_cs_last : std_logic;
   signal mezz_miso: std_logic;
   signal mezz_mosi: std_logic;
   signal mezz_sclk: std_logic;
@@ -116,7 +117,8 @@ architecture Behavioral of fmc_dio_32chlvdsa is
   signal r_input: std_logic_vector(c_num_io-1 downto 0);
   signal r_output: std_logic_vector(c_num_io-1 downto 0);
 
-  signal s_dir: std_logic_vector(c_num_io-1 downto 0);
+  signal s_dir_oe          : std_logic_vector(c_num_io-1 downto 0);
+  signal s_dir_oe_feedback : std_logic_vector(c_num_io-1 downto 0);
   signal s_dir_tmp: std_logic_vector(c_num_io-1 downto 0);
 
 
@@ -246,7 +248,8 @@ begin
       g_address_granularity                   => g_address_granularity,
       g_num_pins                              => c_num_io,
       g_with_builtin_tristates                => false,
-      g_debug                                 => false
+      g_debug                                 => false,
+      g_feedback_direction                    => true
       )
     port map(
       clk_sys_i                               => clk_i,
@@ -261,7 +264,8 @@ begin
       --gpio_b : inout std_logic_vector(g_num_pins-1 downto 0);
       gpio_out_o                              => r_output,
       gpio_in_i                               => r_input,
-      gpio_oen_o                              => s_dir,
+      gpio_oe_i                               => s_dir_oe_feedback,
+      gpio_oe_o                               => s_dir_oe,
       gpio_term_o                             => open,
 
       -- AltF raw interface    
@@ -269,6 +273,21 @@ begin
       raw_i => raw_i
       );
  
+
+proc_oe_synchronizer: process(clk_i)
+begin
+if rising_edge(clk_i) then
+  mezz_cs_last <= mezz_cs(0);
+  
+  if rst_n_i = '0' then
+    s_dir_oe_feedback <= (others => '0');
+  elsif mezz_cs(0) = '1' and mezz_cs_last = '0' then 
+    s_dir_oe_feedback <= s_dir_oe;
+  end if;
+  
+end if;
+end process;
+
  
     U_SPI: xwb_spi 
     generic map(

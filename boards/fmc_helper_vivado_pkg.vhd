@@ -48,7 +48,7 @@ begin
 end function;
 
 
-function gen_xdc_line2(carrier_pin: t_fmc_pin_map; fmc_pin: t_iodelay_map) return string is
+function gen_xdc_line_location(carrier_pin: t_fmc_pin_map; fmc_pin: t_iodelay_map) return string is
   variable pin_pol: string := "p";
   variable iob_pin: string := pin_unknown;
   variable is_comment: string := "#";
@@ -81,27 +81,72 @@ begin
       assert iob_pin /= pin_unknown report "FMC" & str(carrier_pin.fmc_id) & ": cannot find pin: " & str(fmc_pin.iob_index) severity note;
    
      return is_comment & string'("set_property PACKAGE_PIN ") & 
-          iob_pin &
-          string'(" [get_ports {fmc" ) & 
+          iob_pin & "    " &
+          string'(" [get_ports {fmc_inout[" ) & 
           str(carrier_pin.fmc_id) & 
-          string'("_inout[") & 
+          string'("][") & 
           fmc_pin_type_to_str(fmc_pin.iob_type) & 
           string'("_") & 
           pin_pol & 
           string'("][") 
           & str(fmc_pin.iob_index) & 
           string'("]}]");
-    
-      
 
-
-          
 end function;
+
+function gen_xdc_line_iostandard(carrier_pin: t_fmc_pin_map; fmc_pin: t_iodelay_map) return string is
+  variable pin_pol: string := "p";
+  variable iob_pin: string := "        ";
+  variable is_comment: string := "#";
+begin
+
+   if fmc_pin.iob_diff = DIFF then
+     pin_pol:="p";
+     iob_pin := "LVDS_25 ";
+   elsif fmc_pin.iob_diff = NEG then
+     pin_pol:="n";
+     iob_pin := "LVCMOS25";
+   elsif fmc_pin.iob_diff = POS then
+     pin_pol:="p";
+     iob_pin := "LVCMOS25";
+   end if;
+
+   if iob_pin /= pin_unknown then
+     is_comment:=string'(" ");
+   end if;
+   
+   
+      assert iob_pin /= pin_unknown report "FMC" & str(carrier_pin.fmc_id) & ": cannot find pin: " & str(fmc_pin.iob_index) severity note;
+-- set_property IOSTANDARD LVDS_25 [get_ports {fmc2_inout[LA_p][17]}]
+   
+     return is_comment & string'("set_property IOSTANDARD  ") & 
+          iob_pin &
+          string'(" [get_ports {fmc_inout[" ) & 
+          str(carrier_pin.fmc_id) & 
+          string'("][") & 
+          fmc_pin_type_to_str(fmc_pin.iob_type) & 
+          string'("_") & 
+          pin_pol & 
+          string'("][") 
+          & str(fmc_pin.iob_index) & 
+          string'("]}]");
+
+end function;
+
+constant C_SDB_DEVICE_ID : std_logic_vector(7 downto 0) := x"01";
+constant C_SDB_BRIDGE_ID : std_logic_vector(7 downto 0) := x"02";
+
+constant C_SDB_INTEGRATION_ID : std_logic_vector(7 downto 0) := x"80";
+
 
 function sdb_dump_to_file(FileName : String; layout: t_sdb_record_array; sdb_address : t_wishbone_address) return boolean is
   file FileHandle   : TEXT open WRITE_MODE is FileName;
   variable VEC_LINE : line;
   variable entry: std_logic_vector(31 downto 0);
+--  variable entry_line: std_logic_vector(32*16-1 downto 0);
+  variable v_device: t_sdb_device;
+  variable v_bridge: t_sdb_bridge;
+  
 begin
   write(vec_line, string'("SDB Address"));
   writeline(FileHandle, vec_line);
@@ -110,13 +155,38 @@ begin
   writeline(FileHandle, vec_line);
   
   for I in layout'low to layout'high loop
-     write(vec_line, string'("SDB Entry"));
-     writeline(FileHandle, vec_line);
+     write(vec_line, string'("     SDB Entry: "));
      for J in 15 downto 0 loop 
        entry := layout(I)(((J+1)*32)-1  downto ((J)*32));
        write(vec_line, hstr(entry));
-       writeline(FileHandle, vec_line);
      end loop;
+     writeline(FileHandle, vec_line);   
+     if  layout(I)(7 downto 0) =  C_SDB_DEVICE_ID then
+       v_device := f_sdb_extract_device(layout(I));
+       write(vec_line, string'("Component name: "));
+       write(vec_line, v_device.sdb_component.product.name);
+       writeline(FileHandle, vec_line);
+       
+       write(vec_line, string'(" Address range: "));
+       write(vec_line, hstr(v_device.sdb_component.addr_first));
+       write(vec_line, string'(" - "));
+       write(vec_line, hstr(v_bridge.sdb_component.addr_last));
+       writeline(FileHandle, vec_line);
+     elsif  layout(I)(7 downto 0) =  C_SDB_BRIDGE_ID then
+         v_bridge := f_sdb_extract_bridge(layout(I));
+         write(vec_line, string'("   Bridge name: "));
+         write(vec_line, v_bridge.sdb_component.product.name);
+         writeline(FileHandle, vec_line);
+         
+         write(vec_line, string'(" Address range: "));
+         write(vec_line, hstr(v_bridge.sdb_component.addr_first));
+         write(vec_line, string'(" - "));
+         write(vec_line, hstr(v_bridge.sdb_component.addr_last));
+         
+         writeline(FileHandle, vec_line);
+     end if; 
+     
+     
   end loop;
   
   
@@ -164,8 +234,13 @@ begin
   
   for I in fmc_board'low to fmc_board'high loop
       if fmc_board(I) /= c_iodelay_map_empty then
-         write(vec_line, gen_xdc_line2( fmc_pin_map_extract_fmc_pin(fmc_id, fmc_board(I).iob_type, fmc_board(I).iob_index, carrier_board), fmc_board(I))); 
+      -- Location
+         write(vec_line, gen_xdc_line_location( fmc_pin_map_extract_fmc_pin(fmc_id, fmc_board(I).iob_type, fmc_board(I).iob_index, carrier_board), fmc_board(I))); 
          writeline(FileHandle, vec_line);
+         write(vec_line, gen_xdc_line_iostandard( fmc_pin_map_extract_fmc_pin(fmc_id, fmc_board(I).iob_type, fmc_board(I).iob_index, carrier_board), fmc_board(I)));
+         writeline(FileHandle, vec_line);
+      -- io standard ??
+         
       end if;
   end loop;
 
