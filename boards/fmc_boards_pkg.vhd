@@ -42,6 +42,33 @@ Port (
 end component fmc_dio5chttl;
 
 
+component fmc_dio_32chttla is
+
+  generic (
+    g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
+    g_address_granularity    : t_wishbone_address_granularity := WORD;
+    
+    g_enable_system_i2c      : boolean := true;
+
+	g_fmc_id              : natural                        := 1;
+	g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector
+    );
+
+  Port (
+    clk_i : in STD_LOGIC;
+    rst_n_i : in STD_LOGIC;
+    
+    port_fmc_io: inout t_fmc_signals_bidir;
+
+    slave_i       : in  t_wishbone_slave_in;
+    slave_o       : out t_wishbone_slave_out;
+           
+    raw_o: out STD_LOGIC_VECTOR (31 downto 0);
+    raw_i: in  STD_LOGIC_VECTOR (31 downto 0)
+    );
+
+end component fmc_dio_32chttla;
+
 component fmc_dio_32chlvdsa is
 
   generic (
@@ -79,8 +106,9 @@ component  fmc_adc_250m_16b_4cha is
         
 		g_fmc_id              : natural                        := 0;
 		g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector;
-		g_master              : boolean                        := true;
-                
+		
+		g_master_channel      : natural                        := -1;
+            
         g_buggy_transistors   : boolean                        := false
 	);
 
@@ -93,8 +121,6 @@ component  fmc_adc_250m_16b_4cha is
 		port_fmc_inout : inout t_fmc_signals_bidir;
 		port_fmc_in    : in    t_fmc_signals_in;
 		port_fmc_out   : out   t_fmc_signals_out;
-		
-		debug_raw_o    : out   std_logic_vector(4 downto 0);
 
         adc_clk_i      : in std_logic := '0'; -- slave clock 
 		adc_clk_o      : out std_logic; -- master clock

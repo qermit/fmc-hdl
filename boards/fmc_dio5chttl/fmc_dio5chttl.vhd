@@ -27,6 +27,7 @@ use work.wb_helpers_pkg.all;
 
 use work.fmc_dio5chttl_pkg.all;
 use work.fmc_helper_pkg.all;
+use work.fmc_wishbone_pkg.all;
 
 
 entity fmc_dio5chttl is
@@ -73,48 +74,48 @@ component xwb_decoupler is
     );
 end component xwb_decoupler;
 
-  constant c_xwb_fmc_csr_sdb_f : t_sdb_device := f_sdb_device(
-      sdb_component => f_sdb_component(
-        addr_size   => 255,  
-        product => f_sdb_product (
-          vendor_id => C_PEN_GSI,
-          device_id => x"dea435352",
-          version   => 1,
-          date      => x"20170803",
-          name      => "FMC CSR"
-        ))); 
+--  constant c_xwb_fmc_csr_sdb_f : t_sdb_device := f_sdb_device(
+--      sdb_component => f_sdb_component(
+--        addr_size   => 255,  
+--        product => f_sdb_product (
+--          vendor_id => C_PEN_GSI,
+--          device_id => x"dea435352",
+--          version   => 1,
+--          date      => x"20170803",
+--          name      => "FMC CSR"
+--        ))); 
 
-component xwb_fmc_csr is
-    generic (
-    g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
-    g_address_granularity    : t_wishbone_address_granularity := WORD;  
+--component xwb_fmc_csr is
+--    generic (
+--    g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
+--    g_address_granularity    : t_wishbone_address_granularity := WORD;  
   
-    g_enable_system_i2c   : boolean := true;
-    g_enable_pg_m2c       : boolean := false;
-    g_enable_pg_c2m       : boolean := false;
-    g_enable_prsntl       : boolean := false;
+--    g_enable_system_i2c   : boolean := true;
+--    g_enable_pg_m2c       : boolean := false;
+--    g_enable_pg_c2m       : boolean := false;
+--    g_enable_prsntl       : boolean := false;
     
-    g_fmc_id              : natural := 1
-    );
-  Port (
-    clk_i        : in std_logic;
-    rst_n_i      : in std_logic;
+--    g_fmc_id              : natural := 1
+--    );
+--  Port (
+--    clk_i        : in std_logic;
+--    rst_n_i      : in std_logic;
 	
-	--== Wishbone ==--	
-	s_wb_m2s     : in  t_wishbone_slave_in;
-    s_wb_s2m     : out t_wishbone_slave_out;
+--	--== Wishbone ==--	
+--	s_wb_m2s     : in  t_wishbone_slave_in;
+--    s_wb_s2m     : out t_wishbone_slave_out;
     
     
-    pg_m2c_i : in std_logic := '1';
-    pg_c2m_i : in std_logic  := '1';
-    prsntl_i : in std_logic  := '1';
+--    pg_m2c_i : in std_logic := '1';
+--    pg_c2m_i : in std_logic  := '1';
+--    prsntl_i : in std_logic  := '1';
         
         
-    fmc_enable_o: out std_logic
+--    fmc_enable_o: out std_logic
     
     
-    );
-end component;
+--    );
+--end component;
 --  attribute black_box : string;
 --  attribute black_box of Behavioral: architecture is "yes";
   constant c_num_io : natural := 5;
@@ -220,7 +221,7 @@ begin
  		fmc_out_dir_i  => s_fmc_dir1
  	);
 
-   
+  --@todo: check and fix fmc_adapter_extractor & fmc_adapter_injector   
   cmp_extractor : fmc_adapter_extractor
   	generic map(
   		g_fmc_id         => g_fmc_id,
@@ -250,17 +251,23 @@ begin
    		groups_dir_i => s_groups_dir
    	);
   -- @todo: final extractor
+  
+  
   r_input(0) <= s_groups_in(0);
   r_input(1) <= s_groups_in(1);
   r_input(2) <= s_groups_in(2);
   r_input(3) <= s_groups_in(3);
   r_input(4) <= s_groups_in(4);
 
+  
+
   s_groups_out(16 + 0) <= s_term(0);
   s_groups_out(16 + 1) <= s_term(1);
   s_groups_out(16 + 2) <= s_term(2);
   s_groups_out(16 + 3) <= s_term(3);
   s_groups_out(16 + 4) <= s_term(4);
+  s_groups_dir(16 + 4 downto 16) <= (others => '0');
+  
 
   s_dir_oen <= not s_dir_oe;
   s_groups_out(8 + 0) <= s_dir_oen(0);
@@ -268,12 +275,14 @@ begin
   s_groups_out(8+ 2) <= s_dir_oen(2);
   s_groups_out(8+ 3) <= s_dir_oen(3);
   s_groups_out(8+ 4)  <= s_dir_oen(4);
+  s_groups_dir(8+4 downto 8) <= (others => '0');
 
   s_groups_out(0) <= r_output(0);
   s_groups_out(1) <= r_output(1);
   s_groups_out(2) <= r_output(2);
   s_groups_out(3) <= r_output(3);
   s_groups_out(4) <= r_output(4);
+  s_groups_dir(4 downto 0) <= (others => '0');
 
 
   r_input(5) <= '0';

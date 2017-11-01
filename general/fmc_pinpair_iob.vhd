@@ -73,6 +73,8 @@ begin
 
    T_p <= '0' when ((g_out_p = '1' and g_in_p = '1' and fmc_p_dir = '0') or (g_out_p = '1' and g_in_p = '0')) else '1';
    T_n <= '0' when ((g_out_n = '1' and g_in_n = '1' and fmc_n_dir = '0') or (g_out_n = '1' and g_in_n = '0')) else '1';
+  
+   GEN_IOBUF_P: if  g_in_p = '1' or g_out_p = '1' generate
    
    IOBUF_p : IOBUF
    port map (
@@ -82,6 +84,10 @@ begin
       T  => T_p        -- 3-state enable input, high=input, low=output 
    );
    
+   end generate;
+   
+   GEN_IOBUF_N: if  g_in_n = '1' or g_out_n = '1' generate
+
    IOBUF_n : IOBUF
    port map (
       O  => fmc_n_o,   -- Buffer output
@@ -89,7 +95,9 @@ begin
       I  => fmc_n_i,   -- Buffer input
       T  => T_n        -- 3-state enable input, high=input, low=output 
    );
-
+   
+   end generate;
+   
 end generate GEN_SINGLE;
 
 
@@ -132,12 +140,27 @@ GEN_DIFF_O: if g_in_p = '0' and g_out_p = '1' GENERATE
       IOSTANDARD => "DEFAULT"
       )
     port map(
-      I  => fmc_p_i,
-      O   => fmc_p_io,
-      OB  => fmc_n_io,
-      T => tmp_t
+      I  => fmc_p_i,   -- input from FPGA
+      O   => fmc_p_io, -- IO
+      OB  => fmc_n_io, -- IOB
+      T => tmp_t       -- Output enable low
       );
 
+--  cmp_iobufds : IOBUFDS_DIFF_OUT
+--    generic map(
+--      IOSTANDARD => "DEFAULT",
+--      DIFF_TERM => TRUE,
+--      IBUF_LOW_PWR => FALSE
+--      )
+--    port map(
+--      IO  => fmc_p_io,
+--      IOB => fmc_n_io,
+--      I  => fmc_p_i,
+--      O   => open,
+--      OB  => open,
+--      TM => tmp_t,
+--      TS => tmp_t
+--      );
 
 end generate;
 

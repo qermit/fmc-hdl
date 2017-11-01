@@ -20,6 +20,8 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use ieee.numeric_std.all;
+Library UNISIM;
+use UNISIM.vcomponents.all;
 
 use work.fmc_general_pkg.all;
 use work.fmc_wishbone_pkg.all;
@@ -41,7 +43,8 @@ entity fmc_adc_250m_16b_4cha is
 
         g_enable_system_i2c   : boolean                        := true;
 		g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector;
-		g_master              : boolean                        := true;
+		
+		g_master_channel      : natural                        := -1;
 		
 		g_buggy_transistors   : boolean                        := false
 	);
@@ -55,8 +58,6 @@ entity fmc_adc_250m_16b_4cha is
 		port_fmc_in    : in    t_fmc_signals_in;
 		port_fmc_out   : out   t_fmc_signals_out;
 		
-		debug_raw_o    : out   std_logic_vector(4 downto 0);
-
         adc_clk_i      : in std_logic := '0'; -- slave clock 
 		adc_clk_o      : out std_logic; -- master clock
 		
@@ -270,8 +271,6 @@ end component;
    
 begin
 
-  debug_raw_o <= s_debug_raw_o; 
-
 
 
 	cmp_fmc_adapter_iob : fmc_adapter_iob
@@ -340,8 +339,18 @@ GEN_DDR2SADC: for i in 0 to 7 generate
       s_adc3_data(2*i+1)  <= s_adc_q1(3*8+i);
 end generate;
             
-     adc_clk_o <= s_ddr_clk(1);
-      
+GEN_MASTER_YES: if g_master_channel >= 0 and g_master_channel <= 3 generate  
+    U_outclk: BUFG
+    port map (
+     O => adc_clk_o,
+     I =>s_ddr_clk(g_master_channel)
+     );  
+end generate GEN_MASTER_YES;
+
+GEN_MASTER_NO: if g_master_channel < 0 or g_master_channel > 3 generate  
+   adc_clk_o <= '0';
+end generate GEN_MASTER_NO;
+
 
     U_fifo_adc0: in_fifo_16b 
     Port map
@@ -710,12 +719,6 @@ end generate;
       s_fmc_out1.LA_p(14) <= adc_sclk_o;
       s_fmc_out1.LA_n(14) <= adc_mosi_o;
       adc_miso_i <= s_fmc_in_q1.LA_n( 5);
-
-     s_debug_raw_o(0) <= adc_cs_o(0);
-     s_debug_raw_o(1) <= adc_cs_o(1);
-     s_debug_raw_o(2) <= adc_sclk_o;
-     s_debug_raw_o(3) <= adc_mosi_o;
-     s_debug_raw_o(4) <= adc_miso_i;
     
 BLK_mon_spi: if true generate 
  signal local_wb_m2s       : t_wishbone_slave_in;
