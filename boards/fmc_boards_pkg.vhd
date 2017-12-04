@@ -109,7 +109,7 @@ component  fmc_adc_250m_16b_4cha is
 		
 		g_master_channel      : natural                        := -1;
             
-        g_buggy_transistors   : boolean                        := false
+        g_fmc_name            : string                         := "FMC_ADC250M-v1.2"
 	);
 
 	Port(
@@ -181,7 +181,7 @@ component fmc_emptyboard is
   	g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
     g_address_granularity    : t_wishbone_address_granularity := WORD;
   
-    g_enable_fmc_eeprom      : boolean := true;
+    g_enable_system_i2c      : boolean := true;
     g_fmc_id              : natural                        := 1;
 	g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector
     );

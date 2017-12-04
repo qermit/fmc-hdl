@@ -74,50 +74,10 @@ component xwb_decoupler is
     );
 end component xwb_decoupler;
 
---  constant c_xwb_fmc_csr_sdb_f : t_sdb_device := f_sdb_device(
---      sdb_component => f_sdb_component(
---        addr_size   => 255,  
---        product => f_sdb_product (
---          vendor_id => C_PEN_GSI,
---          device_id => x"dea435352",
---          version   => 1,
---          date      => x"20170803",
---          name      => "FMC CSR"
---        ))); 
 
---component xwb_fmc_csr is
---    generic (
---    g_interface_mode         : t_wishbone_interface_mode      := CLASSIC;
---    g_address_granularity    : t_wishbone_address_granularity := WORD;  
-  
---    g_enable_system_i2c   : boolean := true;
---    g_enable_pg_m2c       : boolean := false;
---    g_enable_pg_c2m       : boolean := false;
---    g_enable_prsntl       : boolean := false;
-    
---    g_fmc_id              : natural := 1
---    );
---  Port (
---    clk_i        : in std_logic;
---    rst_n_i      : in std_logic;
-	
---	--== Wishbone ==--	
---	s_wb_m2s     : in  t_wishbone_slave_in;
---    s_wb_s2m     : out t_wishbone_slave_out;
-    
-    
---    pg_m2c_i : in std_logic := '1';
---    pg_c2m_i : in std_logic  := '1';
---    prsntl_i : in std_logic  := '1';
-        
-        
---    fmc_enable_o: out std_logic
-    
-    
---    );
---end component;
 --  attribute black_box : string;
 --  attribute black_box of Behavioral: architecture is "yes";
+
   constant c_num_io : natural := 5;
   constant c_num_gpio : natural :=  c_num_io+2;
 

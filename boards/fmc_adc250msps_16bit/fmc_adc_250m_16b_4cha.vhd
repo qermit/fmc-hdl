@@ -45,8 +45,8 @@ entity fmc_adc_250m_16b_4cha is
 		g_fmc_map             : t_fmc_pin_map_vector           := c_fmc_pin_nullvector;
 		
 		g_master_channel      : natural                        := -1;
-		
-		g_buggy_transistors   : boolean                        := false
+		        
+        g_fmc_name            : string                         := "FMC_ADC250M-v1.2"
 	);
 
 	Port(
@@ -91,6 +91,8 @@ architecture Behavioral of fmc_adc_250m_16b_4cha is
   signal tmp_counter_bit: std_logic;
   constant tmp_counter_load: unsigned(31 downto 0) := to_unsigned(0, 32); --to_unsigned(natural(125000) / 2, 32);
 
+  constant c_buggy_transistors   : boolean := fl_is_buggy_transistor(g_fmc_name);
+  
 --    attribute keep:string;
    component in_fifo_16b is
     Port ( fifo_wrclk : in STD_LOGIC;
@@ -104,8 +106,6 @@ architecture Behavioral of fmc_adc_250m_16b_4cha is
            axis_tdata : out STD_LOGIC_VECTOR (15 downto 0);
            axis_tvalid : out STD_LOGIC;
            axis_tready : in STD_LOGIC);
-           
-           
            
 end component;
 
@@ -816,7 +816,7 @@ end generate;
   
   gpio_dir_oen <= not gpio_dir_oe;
 
-GEN_BUG: if g_buggy_transistors = true generate
+GEN_BUG: if c_buggy_transistors = true generate
 
   -- RED 
   s_fmc_out1.LA_p(29) <= gpio_output(0);
@@ -840,7 +840,7 @@ GEN_BUG: if g_buggy_transistors = true generate
 
 end generate;
 
-GEN_NOBUG: if g_buggy_transistors = false generate
+GEN_NOBUG: if c_buggy_transistors = false generate
 
   -- RED 
   s_fmc_out1.LA_n(24) <= gpio_output(0);

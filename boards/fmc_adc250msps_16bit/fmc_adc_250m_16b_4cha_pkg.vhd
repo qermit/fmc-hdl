@@ -17,8 +17,6 @@ use ieee.std_logic_1164.all;
 
 use work.fmc_general_pkg.all;
 
-
-
 package fmc_adc_250m_16b_4cha_pkg is
 
 
@@ -108,11 +106,26 @@ package fmc_adc_250m_16b_4cha_pkg is
   	others => c_iodelay_map_empty
   ) ;
    
-  
+  function fl_is_buggy_transistor(fmc_name: string) return boolean;
+
   
 end fmc_adc_250m_16b_4cha_pkg;
 
 
 package body fmc_adc_250m_16b_4cha_pkg is
+
+  -- function, local
+  function fl_is_buggy_transistor(fmc_name: string) return boolean is
+  begin
+   if fmc_name = "FMC_ADC250M-v1.0" then
+     return true;
+   elsif fmc_name = "FMC_ADC250M-v1.2" then
+     return false;
+   else 
+     assert false report "fmc_adc_250m_16b_4cha_pkg unknown version:" & fmc_name severity failure;
+   end if;
+   return false;
+
+end function;
 
 end fmc_adc_250m_16b_4cha_pkg;
